@@ -8,7 +8,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 //#include "benchmark/benchmark.h"
-#include "ska_sort.hpp"
+#include "ska\ska_sort.hpp"
 
 
 using std::uint8_t;
@@ -142,6 +142,7 @@ void radix_uint16(uint16_t* first, uint16_t* last) {
 void main() {
 	//std::vector<uint8_t> vec;
 	std::vector<uint16_t> vec;//={1,5,4,0,0};
+	//std::vector<int16_t> vec;//={1,5,4,0,0};
 	// uint8_t vec[256] = {128, 15, 77, 127, 126, 0, 0, 125, 124, 116,
 						// 207, 123, 122, 0, 0, 121, 120, 0, 0, 119,
 						// 118, 0, 0, 117, 11,	6, 0, 76, 115, 114,
@@ -182,11 +183,14 @@ void main() {
 	// printf("\n");
 	
 	 std::mt19937 g(0xCC6699);
-	
-	 std::generate_n(std::back_inserter(vec), 1000000, g);
+	#undef min
+	 std::generate_n(std::back_inserter(vec), 1000000, 
+			[urg=std::uniform_int_distribution<int16_t>(std::numeric_limits<int16_t>::min()), &g]{
+				return urg(g);
+			});
 	 long long time = 0;
 	 LARGE_INTEGER li, li2;
-
+	 
 	 for (int i=0; i<15; ++i) {
 		 std::shuffle(vec.begin(), vec.end(), g);
 		 QueryPerformanceCounter(&li);
