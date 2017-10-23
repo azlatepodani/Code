@@ -11,6 +11,7 @@
 #include "ska\ska_sort.hpp"
 
 
+
 using std::uint8_t;
 
 
@@ -313,7 +314,7 @@ void radix_uint16_p(uint16_t* first, uint16_t* last) {
 	apply_prefixes(first, count, start, prefix, 0, ExtractHighByte());
 	
 	int32_t pos = 0;
-	int32_t old_prefix = 0;
+	//int32_t old_prefix = 0;
 
 	for (int i=0; i<256; ++i) {
 		/*if (prefix[i]-old_prefix < 128) {
@@ -326,20 +327,130 @@ void radix_uint16_p(uint16_t* first, uint16_t* last) {
 			radix_byte_p(first+pos, first+prefix[i], 0, ExtractLowByte());
 		}
 		
-		pos += prefix[i] - old_prefix;
-		old_prefix = prefix[i];
+		//pos += prefix[i] - old_prefix;
+		//old_prefix = prefix[i];
+		pos = prefix[i];
 	}
 }
 
 
 
-void radix_string(std::string& first, std::string& last) {
+struct ExtractStringByte {
+	explicit ExtractStringByte(int offset) : offset(offset) {}
+	uint8_t operator()(const std::string& str) {
+		return str[offset];
+	}
+	
+	int offset;
+};
+
+
+
+// void radix_string(std::string* first, std::string* last, int round) {
+	// using std::swap;
+	// std::array<partition_t, 256> count = {0};
+	
+	// update_counts(count, first, last, 0, ExtractStringByte(round));
+	
+	// std::array<int32_t, 256> prefix;
+
+	// auto start = compute_prefixes(count, prefix);
+	
+	// apply_prefixes(first, count, start, prefix, 0, ExtractStringByte(round));
+	
+	// int32_t pos = 0;
+	// //int32_t old_prefix = 0;
+
+	// for (int i=0; i<256; ++i) {
+		// while (first[pos].size() <= round+1) {
+				// ++pos; if (pos == prefix[i]) goto _after_sort;
+			// }
+			
+		// /*if (prefix[i]-pos < 128) {
+			// //ExtractStringByte ek(round+1);
+			// std::sort(first+pos, first+prefix[i], [r = round+1](const std::string& left, const std::string& right) {
+				// //ExtractLowByte ek;
+				// return left.length() < right.length() || strcmp(&left[r], &right[r]) < 0;
+			// });
+		// }
+		// else */if (prefix[i]-pos > 1) {
+			
+			// radix_string(first+pos, first+prefix[i], round+1);
+		// }
+		
+		// pos = prefix[i];
+		// _after_sort:;
+		// //old_prefix = prefix[i];
+	// }
+// }
+
+void radix_string(std::string* first, std::string* last, int round) {
+	using std::swap;
+	std::array<partition_t, 256> count = {0};
+	
+	update_counts(count, first, last, 0, ExtractStringByte(round));
+	
+	std::array<int32_t, 256> prefix;
+
+	auto recurse_table = fill_recurse_table(count);
+	auto start = compute_prefixes(count, prefix);
+	
+	apply_prefixes(first, count, start, prefix, 0, ExtractStringByte(round));
+	
+	//int32_t pos = 0;
+
+	//for (int i=0; i<256; ++i) {
+	for (int i=0; recurse_table[i].second; ++i) {
+		// if (recurse_table[i].second - recurse_table[i].first < 128) {
+			// std::sort(first+recurse_table[i].first, first+recurse_table[i].second, [](uint16_t left, uint16_t right) {
+				// ExtractLowByte ek;
+				// return ek(left) < ek(right);
+			// });
+		// }
+		// else {
+			// radix_byte_p(first+recurse_table[i].first, first+recurse_table[i].second, 0, ExtractLowByte());
+		while (first[recurse_table[i].first].size() <= round+1) {
+				++recurse_table[i].first; if (recurse_table[i].first == recurse_table[i].second) goto _after_sort;
+			}
+			
+		/*if (prefix[i]-pos < 128) {
+			std::sort(first+pos, first+prefix[i], [r = round+1](const std::string& left, const std::string& right) {
+				return left.length() < right.length() || strcmp(&left[r], &right[r]) < 0;
+			});
+		}
+		else */if (recurse_table[i].second - first+recurse_table[i].first > 1) {
+			
+			radix_string(first+recurse_table[i].first, first+recurse_table[i].second, round+1);
+		}
+		
+		//pos = prefix[i];
+		_after_sort:;
+	}
+}
+
+
+void gen_random_string_array(int n, int min_len, int max_len,
+							 std::vector<std::string>& vec,
+							 std::mt19937& g)
+{
+	auto x = std::uniform_int_distribution<int>(32,127);
+	auto y = std::uniform_int_distribution<int>(min_len, max_len);
+	
+	for (int i=0; i<n; ++i) {
+		int len = y(g);
+		std::string s;
+		s.resize(len);
+		for (int j=0; j<len; ++j) {
+			s[j] = x(g);
+		}
+		vec.emplace_back(std::move(s));
+	}
 }
 
 
 void main() {
 	//std::vector<uint8_t> vec;
-	std::vector<uint16_t> vec;//={1,5,4,0,0};
+	//std::vector<uint16_t> vec;//={1,5,4,0,0};
 	//std::vector<int16_t> vec;//={1,5,4,0,0};
 	// uint8_t vec[256] = {128, 15, 77, 127, 126, 0, 0, 125, 124, 116,
 						// 207, 123, 122, 0, 0, 121, 120, 0, 0, 119,
@@ -367,6 +478,9 @@ void main() {
 						// 16, 247, 10, 15, 14, 247, 10, 13, 12, 247,
 						// 10, 11, 10, 105, 50, 9, 8, 0, 0, 7,
 						// 6, 32, 51, 5, 4, 21};//0, 0, 1, 4, 5};//1,5,4,0,0};
+						
+	std::vector<std::string> vec;// = {"kal","jasds","oeael","cnalsda","adaadasd","adada","ppkod"};					
+						
 	// for (int i=0; i<256; ++i) {
 		// vec[uint8_t(i*2+i%2)] = 256-i;
 	// }
@@ -382,25 +496,28 @@ void main() {
 	
 	 std::mt19937 g(0xCC6699);
 	#undef min
+	
+	gen_random_string_array(1000, 2, 10240, vec, g);
 	// std::generate_n(std::back_inserter(vec), 1000000, 
 	//		[urg=std::uniform_int_distribution<int16_t>(std::numeric_limits<int16_t>::min()), &g]{
 	//			return urg(g);
 	//		});
-	auto x = std::uniform_int_distribution<int>(0,0xFFFF);
-	 std::generate_n(std::back_inserter(vec), 1000000, 
-			[urg=x, &g]{
-				return urg(g);
-			});
+	// auto x = std::uniform_int_distribution<int>(0,0xFFFF);
+	 // std::generate_n(std::back_inserter(vec), 1000000, 
+			// [urg=x, &g]{
+				// return urg(g);
+			// });
 	 long long time = 0;
 	 LARGE_INTEGER li, li2;
 	 
-	 for (int i=0; i<15; ++i) {
+	 for (int i=0; i<1; ++i) {
 		 std::shuffle(vec.begin(), vec.end(), g);
 		 QueryPerformanceCounter(&li);
 		 //radix_uint16_p(&vec[0], &vec[0]+vec.size());
 		 //radix_byte_p(&vec[0], &vec[0]+vec.size(), 0, IdentityKey());
+		 radix_string(&vec[0], &vec[0]+vec.size(), 0);
 		 //std::sort(&vec[0], &vec[0]+vec.size());
-		 ska_sort(&vec[0], &vec[0]+vec.size());
+		 //ska_sort(&vec[0], &vec[0]+vec.size());
 		 QueryPerformanceCounter(&li2); time += li2.QuadPart - li.QuadPart;
 	 }
 
@@ -410,7 +527,9 @@ void main() {
 	
 	auto old = vec.front();
 	for (auto val : vec) {
-		if (old > val) printf("%d > %d\t", (int)old, (int)val);
+		//if (old > val) printf("%d > %d\t", (int)old, (int)val);
+		if (old > val) printf("%s >>>>> %s\n\n", old.c_str(), val.c_str());
+		//printf("%s\n", val.c_str());
 		old = val;
 	}
 	printf("\n");
