@@ -688,15 +688,21 @@ void main() {
 	 long long time = 0;
 	 LARGE_INTEGER li, li2;
 	 
+	 
+	 SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+	 if (GetThreadPriority(GetCurrentThread()) != THREAD_PRIORITY_HIGHEST) printf("Priority set failed\n");
+	 
+	 SetThreadAffinityMask(GetCurrentThread(), 1);
+	 
 	 for (int i=0; i<1; ++i) {
 		 std::shuffle(vec.begin(), vec.end(), g);
 		 QueryPerformanceCounter(&li);
 		 //radix_uint16_p(&vec[0], &vec[0]+vec.size());
 		 //radix_uint32_p(&vec[0], &vec[0]+vec.size());
 		 //radix_byte_p(&vec[0], &vec[0]+vec.size(), IdentityKey());
-		 radix_string(&vec[0], &vec[0]+vec.size(), 0);
+		 //radix_string(&vec[0], &vec[0]+vec.size(), 0);
 		 //std::sort(&vec[0], &vec[0]+vec.size());
-		 //ska_sort(&vec[0], &vec[0]+vec.size());
+		 ska_sort(&vec[0], &vec[0]+vec.size());
 		 QueryPerformanceCounter(&li2); time += li2.QuadPart - li.QuadPart;
 	 }
 
