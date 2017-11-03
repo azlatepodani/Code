@@ -7,19 +7,23 @@
 #include <random>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include "ska\ska_sort.hpp"
+//#include "ska\ska_sort.hpp"
+//#include <boost/sort/spreadsort/spreadsort.hpp>
 
+
+
+// cl /Zi /EHsc /O2 /Gy radix\radix5.cpp  -I"R:\Src\sdk\VS 2012\boost\1.65.1\include" /link /OPT:ICF
 
 
 using std::uint8_t;
 
 
 struct IdentityKey {
-	uint8_t operator()(const uint8_t& val) {
+	uint8_t operator()(uint8_t val) {
 		return val;
 	}
 	
-	uint8_t operator()(const int8_t& val) {
+	uint8_t operator()(int8_t val) {
 		return (uint8_t)val + 128;
 	}
 };
@@ -91,22 +95,22 @@ struct IdentityKey {
 
 
 struct ExtractHighByte {
-	uint8_t operator()(const uint16_t& val) {
+	uint8_t operator()(uint16_t val) {
 		return val>>8;
 	}
 	
-	uint8_t operator()(const int16_t& val) {
+	uint8_t operator()(int16_t val) {
 		return ((uint16_t)val + 0x8000)>>8;	// can do better
 	}
 };
 
 
 struct ExtractLowByte {
-	uint8_t operator()(const uint16_t& val) {
+	uint8_t operator()(uint16_t val) {
 		return val&0xFF;
 	}
 	
-	uint8_t operator()(const int16_t& val) {
+	uint8_t operator()(int16_t val) {
 		return ((uint16_t)val + 0x8000)&0xFF;	// can do better
 	}
 };
@@ -351,7 +355,7 @@ void radix_word_p(T first, T last, ExtractKey& ek, NextSort& continuation) {
 struct ExtractHighWord {
 	typedef uint32_t value_type;
 	
-	uint16_t operator()(const uint32_t& val) {
+	uint16_t operator()(uint32_t val) {
 		return val >> 16;
 	}
 };
@@ -360,7 +364,7 @@ struct ExtractHighWord {
 struct ExtractLowWord {
 	typedef uint32_t value_type;
 	
-	uint16_t operator()(const uint32_t& val) {
+	uint16_t operator()(uint32_t val) {
 		return val & 0xFFFF;
 	}
 };
@@ -382,15 +386,15 @@ using compose2 = compose<ExtractHighByte, ExtractLowWord>;
 using compose1 = compose<ExtractLowByte,  ExtractLowWord>;
 
 
-void radix_uint32_p(uint32_t* first, uint32_t* last) {
-	radix_word_p(first, last, compose4(ExtractHighByte(), ExtractHighWord()), [](uint32_t* first, uint32_t* last) {
-		radix_word_p(first, last, compose3(ExtractLowByte(), ExtractHighWord()), [](uint32_t* first, uint32_t* last) {
-			radix_word_p(first, last, compose2(ExtractHighByte(), ExtractLowWord()), [](uint32_t* first, uint32_t* last) {
-				radix_word_p(first, last, compose1(ExtractLowByte(), ExtractLowWord()), NoContinuation<uint32_t*>());
-			});
-		});
-	});
-}
+// void radix_uint32_p(uint32_t* first, uint32_t* last) {
+	// radix_word_p(first, last, compose4(ExtractHighByte(), ExtractHighWord()), [](uint32_t* first, uint32_t* last) {
+		// radix_word_p(first, last, compose3(ExtractLowByte(), ExtractHighWord()), [](uint32_t* first, uint32_t* last) {
+			// radix_word_p(first, last, compose2(ExtractHighByte(), ExtractLowWord()), [](uint32_t* first, uint32_t* last) {
+				// radix_word_p(first, last, compose1(ExtractLowByte(), ExtractLowWord()), NoContinuation<uint32_t*>());
+			// });
+		// });
+	// });
+// }
 
 
 
@@ -453,37 +457,38 @@ struct ExtractStringChar {
 
 
 
-void radix_string(std::string* first, std::string* last, int round) {
-	std::array<partition_t, 256> count = {0};
+// void radix_string(std::string* first, std::string* last, int round) {
+	// std::array<partition_t, 256> count = {0};
 	
-	update_counts(count, first, last, ExtractStringChar(round));
+	// update_counts(count, first, last, ExtractStringChar(round));
 	
-	std::array<int32_t, 256> prefix;
+	// std::array<int32_t, 256> prefix;
 
-	auto recurse_table = fill_recurse_table(count);
-	auto start = compute_prefixes(count, prefix);
+	// auto recurse_table = fill_recurse_table(count);
+	// auto start = compute_prefixes(count, prefix);
 	
-	apply_prefixes(first, count, start, prefix, ExtractStringChar(round));
+	// apply_prefixes(first, count, start, prefix, ExtractStringChar(round));
 	
-	for (int i=0; recurse_table[i].second; ++i) {
-		while (first[recurse_table[i].first].size() <= round+1) {
-				++recurse_table[i].first; if (recurse_table[i].first == recurse_table[i].second) goto _after_sort;
-			}
+	// for (int i=0; recurse_table[i].second; ++i) {
+		// // warning C4018: '<=': signed/unsigned mismatch
+		// while (first[recurse_table[i].first].size() <= round+1) {
+				// ++recurse_table[i].first; if (recurse_table[i].first == recurse_table[i].second) goto _after_sort;
+			// }
 			
-		auto diff = recurse_table[i].second - recurse_table[i].first;
+		// auto diff = recurse_table[i].second - recurse_table[i].first;
 		
-		//if (diff <= 1) { }
-		//else
-		if (diff > 128) {
-			radix_string(first+recurse_table[i].first, first+recurse_table[i].second, round+1);
-		}
-		else {
-			std::sort(first+recurse_table[i].first, first+recurse_table[i].second);
-		}
+		// //if (diff <= 1) { }
+		// //else
+		// if (diff > 128) {
+			// radix_string(first+recurse_table[i].first, first+recurse_table[i].second, round+1);
+		// }
+		// else {
+			// std::sort(first+recurse_table[i].first, first+recurse_table[i].second);
+		// }
 		
-		_after_sort:;
-	}
-}
+		// _after_sort:;
+	// }
+// }
 
 
 template <typename T, typename ExtractKey, typename NextSort>
@@ -505,6 +510,20 @@ void recurse_down_r(T first, std::array<std::pair<int32_t, int32_t>, 257>& recur
 		
 		_after_sort:;
 	}
+}
+
+
+template <typename T, typename ExtractKey>
+void radix_word_p(T first, T last, ExtractKey& ek) {
+	std::array<partition_t, 256> count = {0};
+	
+	update_counts(count, first, last, ek);
+	
+	std::array<int32_t, 256> prefix;
+
+	auto start = compute_prefixes(count, prefix);
+	
+	apply_prefixes(first, count, start, prefix, ek);
 }
 
 
@@ -537,6 +556,10 @@ int get_key_round(const compose_cl& ek) {
 	return ek.g.offset;
 }
 
+int get_key_round(const ExtractStringChar& ek) {
+	return ek.offset;
+}
+
 void radix_string(std::wstring* first, std::wstring* last, int round) {
 	radix_word_pr(first, last, compose_ch(ExtractHighByte(), ExtractStringChar(round)),
 		[round](std::wstring* first, std::wstring* last) {
@@ -546,41 +569,30 @@ void radix_string(std::wstring* first, std::wstring* last, int round) {
 				});
 		});
 }
-		
-	
-	
-	
-	
-	// std::array<partition_t, 256> count = {0};
-	
-	// update_counts(count, first, last, ExtractStringChar(round));
-	
-	// std::array<int32_t, 256> prefix;
 
-	// auto recurse_table = fill_recurse_table(count);
-	// auto start = compute_prefixes(count, prefix);
-	
-	// apply_prefixes(first, count, start, prefix, ExtractStringChar(round));
-	
-	// for (int i=0; recurse_table[i].second; ++i) {
-		// while (first[recurse_table[i].first].size() <= round+1) {
-				// ++recurse_table[i].first; if (recurse_table[i].first == recurse_table[i].second) goto _after_sort;
-			// }
-			
-		// auto diff = recurse_table[i].second - recurse_table[i].first;
-		
-		// //if (diff <= 1) { }
-		// //else
-		// if (diff > 128) {
-			// radix_string(first+recurse_table[i].first, first+recurse_table[i].second, round+1);
-		// }
-		// else {
-			// std::sort(first+recurse_table[i].first, first+recurse_table[i].second);
-		// }
-		
-		// _after_sort:;
-	// }
-//}
+
+void radix_string(std::string* first, std::string* last, int round) {
+	radix_word_pr(first, last, ExtractStringChar(round),
+		[round](std::string* first, std::string* last) {
+			radix_string(first, last, round+1);
+		});
+}
+
+
+void radix_uint32_p(uint32_t* first, uint32_t* last) {
+	radix_word_p(first, last, compose4(ExtractHighByte(), ExtractHighWord()), [](uint32_t* first, uint32_t* last) {
+		radix_word_p(first, last, compose3(ExtractLowByte(), ExtractHighWord()), [](uint32_t* first, uint32_t* last) {
+			radix_word_p(first, last, compose2(ExtractHighByte(), ExtractLowWord()), [](uint32_t* first, uint32_t* last) {
+				radix_word_p(first, last, compose1(ExtractLowByte(), ExtractLowWord()));
+			});
+		});
+	});
+}
+
+
+
+
+
 
 
 
@@ -594,6 +606,25 @@ void gen_random_string_array(int n, int min_len, int max_len,
 	for (int i=0; i<n; ++i) {
 		int len = y(g);
 		std::wstring s;
+		s.resize(len);
+		for (int j=0; j<len; ++j) {
+			s[j] = x(g);
+		}
+		vec.emplace_back(std::move(s));
+	}
+}
+
+
+void gen_random_string_array(int n, int min_len, int max_len,
+							 std::vector<std::string>& vec,
+							 std::mt19937& g)
+{
+	auto x = std::uniform_int_distribution<int>(32,127);
+	auto y = std::uniform_int_distribution<int>(min_len, max_len);
+	
+	for (int i=0; i<n; ++i) {
+		int len = y(g);
+		std::string s;
 		s.resize(len);
 		for (int j=0; j<len; ++j) {
 			s[j] = x(g);
@@ -654,10 +685,10 @@ void main() {
 						// 10, 11, 10, 105, 50, 9, 8, 0, 7,
 						// 6, 32, 51, 5, 4, 21};//0, 1, 4, 5};//1,5,4,0,0};
 						
-	//std::vector<std::string> vec;// = {"kal","jasds","oeael","cnalsda","adaadasd","adada","ppkod"};
+	std::vector<std::string> vec;// = {"kal","jasds","oeael","cnalsda","adaadasd","adada","ppkod"};
 	//std::vector<char *> vec;
 	
-	std::vector<std::wstring> vec;
+	//std::vector<std::wstring> vec;
 						
 	// for (int i=0; i<256; ++i) {
 		// vec[uint8_t(i*2+i%2)] = 256-i;
@@ -680,7 +711,7 @@ void main() {
 			// [urg=std::uniform_int_distribution<int16_t>(std::numeric_limits<int16_t>::min()), &g]{
 				// return urg(g);
 			// });
-	// auto x = std::uniform_int_distribution<int>(0,0xFFFF);
+	// auto x = std::uniform_int_distribution<unsigned>();
 	// std::generate_n(std::back_inserter(vec), 1000000, 
 			// [urg=x, &g]{
 				// return urg(g);
@@ -694,15 +725,23 @@ void main() {
 	 
 	 SetThreadAffinityMask(GetCurrentThread(), 1);
 	 
+	 std::shuffle(vec.begin(), vec.end(), g);
+	 radix_string(&vec[0], &vec[0]+vec.size(), 0);
+	 //std::sort(&vec[0], &vec[0]+vec.size());
+	 //ska_sort(&vec[0], &vec[0]+vec.size());
+	 //boost::sort::spreadsort::spreadsort(&vec[0], &vec[0]+vec.size());
+
+	 
 	 for (int i=0; i<1; ++i) {
 		 std::shuffle(vec.begin(), vec.end(), g);
 		 QueryPerformanceCounter(&li);
 		 //radix_uint16_p(&vec[0], &vec[0]+vec.size());
 		 //radix_uint32_p(&vec[0], &vec[0]+vec.size());
 		 //radix_byte_p(&vec[0], &vec[0]+vec.size(), IdentityKey());
-		 //radix_string(&vec[0], &vec[0]+vec.size(), 0);
+		 radix_string(&vec[0], &vec[0]+vec.size(), 0);
+		 //boost::sort::spreadsort::spreadsort(&vec[0], &vec[0]+vec.size());
 		 //std::sort(&vec[0], &vec[0]+vec.size());
-		 ska_sort(&vec[0], &vec[0]+vec.size());
+		 //ska_sort(&vec[0], &vec[0]+vec.size());
 		 QueryPerformanceCounter(&li2); time += li2.QuadPart - li.QuadPart;
 	 }
 
@@ -713,8 +752,8 @@ void main() {
 	auto old = vec.front();
 	for (auto val : vec) {
 		//if (old > val) printf("%d > %d\t", (int)old, (int)val);
-		//if (old > val) printf("%s >>>>> %s\n\n", old.c_str(), val.c_str());
-		if (old > val) wprintf(L"%s >>>>> %s\n\n", old.c_str(), val.c_str());
+		if (old > val) printf("%s >>>>> %s\n\n", old.c_str(), val.c_str());
+		//if (old > val) wprintf(L"%s >>>>> %s\n\n", old.c_str(), val.c_str());
 		//if (strcmp(old, val) > 0) printf("%s >>>>> %s\n\n", old, val);
 		//printf("%s\n", val.c_str());
 		old = val;
