@@ -106,7 +106,7 @@ void benchmark(int size, char * desc, std::vector<T>& vec, std::mt19937& g, Fn a
 	int i=0;
 	int maxi = 15000000 / size;
 	for (; i<maxi; ++i) {
-		std::copy(backup.begin(), backup.begin()+size, vec.begin());
+		vec = std::vector<T>(backup.begin(), backup.begin()+size);
 		QueryPerformanceCounter(&li);
 
 		alg(&vec[0], &vec[0]+size);
@@ -155,19 +155,19 @@ void main() {
 	if (!SetThreadAffinityMask(GetCurrentThread(), 1)) printf("Affinity set failed\n");
 	 
 	
-	benchmark("v uint8", vec1, g, [](uint8_t* f, uint8_t* l){radix_sort(f,l);});
-	benchmark("v int8", vec2, g, [](int8_t* f, int8_t* l){radix_sort(f,l);});
-	benchmark("v uint16", vec3, g, [](uint16_t* f, uint16_t* l){radix_sort(f,l);});
-	benchmark("v int16", vec4, g, [](int16_t* f, int16_t* l){radix_sort(f,l);});
-	//benchmark("v string", vec5, g, [](std::string* f, std::string* l){radix_string(f,l, 0);});
-	//benchmark("v wstring", vec6, g, [](std::wstring* f, std::wstring* l){radix_string(f,l, 0);});
+	// benchmark("v uint8", vec1, g, [](uint8_t* f, uint8_t* l){radix_sort(f,l);});
+	// benchmark("v int8", vec2, g, [](int8_t* f, int8_t* l){radix_sort(f,l);});
+	// benchmark("v uint16", vec3, g, [](uint16_t* f, uint16_t* l){radix_sort(f,l);});
+	// benchmark("v int16", vec4, g, [](int16_t* f, int16_t* l){radix_sort(f,l);});
+	benchmark("v string", vec5, g, [](std::string* f, std::string* l){radix_string(f,l, 0);});
+	benchmark("v wstring", vec6, g, [](std::wstring* f, std::wstring* l){radix_string(f,l, 0);});
 	
-	benchmark("ss uint8", vec1, g, [](uint8_t* f, uint8_t* l){ska_sort(f,l);});
-	benchmark("ss int8", vec2, g, [](int8_t* f, int8_t* l){ska_sort(f,l);});
-	benchmark("ss uint16", vec3, g, [](uint16_t* f, uint16_t* l){ska_sort(f,l);});
-	benchmark("ss int16", vec4, g, [](int16_t* f, int16_t* l){ska_sort(f,l);});
-	//benchmark("ss string", vec5, g, [](std::string* f, std::string* l){ska_sort(f,l);});
-	//benchmark("ss wstring", vec6, g, [](std::wstring* f, std::wstring* l){ska_sort(f,l);});//*/
+	// benchmark("ss uint8", vec1, g, [](uint8_t* f, uint8_t* l){ska_sort(f,l);});
+	// benchmark("ss int8", vec2, g, [](int8_t* f, int8_t* l){ska_sort(f,l);});
+	// benchmark("ss uint16", vec3, g, [](uint16_t* f, uint16_t* l){ska_sort(f,l);});
+	// benchmark("ss int16", vec4, g, [](int16_t* f, int16_t* l){ska_sort(f,l);});
+	benchmark("ss string", vec5, g, [](std::string* f, std::string* l){ska_sort(f,l);});
+	benchmark("ss wstring", vec6, g, [](std::wstring* f, std::wstring* l){ska_sort(f,l);});//*/
 	
 	// for (int i=400; ;i*=2) {
 		// auto& vec = vec6;

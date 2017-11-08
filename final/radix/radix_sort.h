@@ -117,29 +117,30 @@ inline void radix_sort(int16_t* first, int16_t* last) {
 template <typename T, typename ExtractKey>
 void radix_byte_p(T first, T last, ExtractKey& ek)
 {
-	std::array<partition_t, 256> count = {0};
+	counters_t count = {0};
 	
 	compute_counts(count, first, last, ek);
 	
+	counters_t chain;
 	counters_t end_pos;
 
-	auto start = compute_ranges(count, end_pos);
+	compute_ranges(count, end_pos, chain);
 	
-	swap_elements_into_place(first, count, start, end_pos, ek);
+	swap_elements_into_place(first, count, end_pos, chain, ek);
 }
 
 
-std::array<std::pair<int32_t, int32_t>, 257> fill_recurse_table(const std::array<partition_t, 256>& partitions) {
+std::array<std::pair<int32_t, int32_t>, 257> fill_recurse_table(const counters_t& count) {
 	std::array<std::pair<int32_t, int32_t>, 257> recurse_table;
 	
 	int32_t start = 0;
 	int pos = 0;
 	for (int i=0; i<256; ++i) {
-		if (partitions[i].count > 1) {
-			recurse_table[pos++] = std::make_pair(start, start+partitions[i].count);
+		if (count[i] > 1) {
+			recurse_table[pos++] = std::make_pair(start, start+count[i]);
 		}
 		
-		start += partitions[i].count;
+		start += count[i];
 	}
 	
 	recurse_table[pos].second = 0;
@@ -166,15 +167,16 @@ std::array<std::pair<int32_t, int32_t>, 257> fill_recurse_table(const std::array
 // }
 
 void radix_uint16_p(uint16_t* first, uint16_t* last) {
-	std::array<partition_t, 256> count = {0};
+	counters_t count = {0};
 	
 	compute_counts(count, first, last, ExtractHighByte());
-	
+
+	counters_t chain;	
 	counters_t end_pos;
 
-	auto start = compute_ranges(count, end_pos);
+	compute_ranges(count, end_pos, chain);
 	
-	swap_elements_into_place(first, count, start, end_pos, ExtractHighByte());
+	swap_elements_into_place(first, count, end_pos, chain, ExtractHighByte());
 	
 	int32_t pos = 0;
 
@@ -210,15 +212,16 @@ struct NoContinuation {
 
 template <typename T, typename ExtractKey, typename NextSort>
 void radix_word_p(T first, T last, ExtractKey& ek, NextSort& continuation) {
-	std::array<partition_t, 256> count = {0};
+	counters_t count = {0};
 	
 	compute_counts(count, first, last, ek);
 	
+	counters_t chain;
 	counters_t end_pos;
 
-	auto start = compute_ranges(count, end_pos);
+	compute_ranges(count, end_pos, chain);
 	
-	swap_elements_into_place(first, count, start, end_pos, ek);
+	swap_elements_into_place(first, count, end_pos, chain, ek);
 	
 	recurse_down(first, end_pos, continuation);
 }
@@ -330,16 +333,17 @@ struct ExtractStringChar {
 
 
 void radix_string(std::string* first, std::string* last, int round) {
-	std::array<partition_t, 256> count = {0};
+	counters_t count = {0};
 	
 	compute_counts(count, first, last, ExtractStringChar(round));
 	
+	counters_t chain;
 	counters_t end_pos;
 
 	auto recurse_table = fill_recurse_table(count);
-	auto start = compute_ranges(count, end_pos);
+	compute_ranges(count, end_pos, chain);
 	
-	swap_elements_into_place(first, count, start, end_pos, ExtractStringChar(round));
+	swap_elements_into_place(first, count, end_pos, chain, ExtractStringChar(round));
 	
 	for (int i=0; recurse_table[i].second; ++i) {
 		while (first[recurse_table[i].first].size() <= round+1) {
@@ -387,16 +391,17 @@ void recurse_down_r(T first, std::array<std::pair<int32_t, int32_t>, 257>& recur
 
 template <typename T, typename ExtractKey, typename NextSort>
 void radix_word_pr(T first, T last, ExtractKey& ek, NextSort& continuation) {
-	std::array<partition_t, 256> count = {0};
+	counters_t count = {0};
 	
 	compute_counts(count, first, last, ek);
 	
+	counters_t chain;
 	counters_t end_pos;
 
 	auto recurse_table = fill_recurse_table(count);
-	auto start = compute_ranges(count, end_pos);
+	compute_ranges(count, end_pos, chain);
 	
-	swap_elements_into_place(first, count, start, end_pos, ek);
+	swap_elements_into_place(first, count, end_pos, chain, ek);
 	
 	recurse_down_r(first, recurse_table, ek, continuation);
 }

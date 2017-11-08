@@ -84,13 +84,13 @@ void compute_counts(counters_t& count, RandomIt first, RandomIt last, ExtractKey
 }
 
 
-struct partition_t {
-	int count;
-	int next;    // next non-empty partition
-};
+// struct partition_t {
+	// int count;
+	// int next;    // next non-empty partition
+// };
 
 
-using partitions_t = std::array<partition_t, 256>;
+// using partitions_t = std::array<partition_t, 256>;
 constexpr int Part_chain_end = 256;
 
 //
@@ -100,13 +100,13 @@ constexpr int Part_chain_end = 256;
 //  1. The range [first, last) will have less than INT_MAX elements
 //  2. The output parameter 'partitions' was 0-initialized
 //
-template <typename RandomIt, typename ExtractKey>
-void compute_counts(partitions_t& partitions, RandomIt first, RandomIt last, ExtractKey&& ek)
-{
-	for (auto it = first; it != last; ++it) {
-		++partitions[ek(*it)].count;
-	}
-}
+// template <typename RandomIt, typename ExtractKey>
+// void compute_counts(partitions_t& partitions, RandomIt first, RandomIt last, ExtractKey&& ek)
+// {
+	// for (auto it = first; it != last; ++it) {
+		// ++partitions[ek(*it)].count;
+	// }
+// }
 
 //
 // Converts the 'count' array in-place to an array of start positions
@@ -118,19 +118,23 @@ void compute_counts(partitions_t& partitions, RandomIt first, RandomIt last, Ext
 // Preconditions:
 //  1. 'count' was initialized by compute_counts()
 //
-void compute_ranges(counters_t& count, counters_t& end_pos)
+int compute_ranges(counters_t& count, counters_t& end_pos)
 {
 	int sum = count[0];
 	count[0] = 0;
+	int hits = 0;
 	
 	for (int i=1; i<256; ++i) {
 		auto val = count[i];
 		end_pos[i-1] = sum;
 		count[i] = sum;
 		sum += val;
+		hits += val?1:0;
 	}
 	
 	end_pos[255] = sum;
+	
+	return hits;
 }
 
 //
@@ -141,32 +145,60 @@ void compute_ranges(counters_t& count, counters_t& end_pos)
 // Preconditions:
 //  1. 'partitions' was initialized by compute_counts()
 //
-int compute_ranges(partitions_t& partitions, counters_t& end_pos)
-{
-	int sum = partitions[0].count;
-	partitions[0].count = 0;
+// int compute_ranges(partitions_t& partitions, counters_t& end_pos)
+// {
+	// int sum = partitions[0].count;
+	// partitions[0].count = 0;
 	
-	partition_t* prev = &partitions[255];
-	partitions[255].next = Part_chain_end;
+	// partition_t* prev = &partitions[255];
+	// partitions[255].next = Part_chain_end;
+	
+	// for (int i=1; i<256; ++i) {
+		// auto val = partitions[i].count;
+		// if (val) {
+			// prev->next = i;
+			// prev = &partitions[i];
+		// }
+		
+		// end_pos[i-1] = sum;
+		// partitions[i].count = sum;
+		// sum += val;
+	// }
+	
+	// int chain_start = partitions[255].next;
+	// prev->next = Part_chain_end;
+	// end_pos[255] = sum;
+	// partitions[255].next = Part_chain_end; // it used to hold the first position in the chain
+	
+	// return chain_start;
+// }
+
+int compute_ranges(counters_t& count, counters_t& end_pos, counters_t& chain)
+{
+	int sum = count[0];
+	count[0] = 0;
+	
+	int prev = 0;
+	chain[0] = Part_chain_end;
+	
+	int hits = 0;
 	
 	for (int i=1; i<256; ++i) {
-		auto val = partitions[i].count;
+		auto val = count[i];
 		if (val) {
-			prev->next = i;
-			prev = &partitions[i];
+			chain[prev++] = i;
+			hits++;
 		}
 		
 		end_pos[i-1] = sum;
-		partitions[i].count = sum;
+		count[i] = sum;
 		sum += val;
 	}
 	
-	int chain_start = partitions[255].next;
-	prev->next = Part_chain_end;
+	chain[prev] = Part_chain_end;
 	end_pos[255] = sum;
-	partitions[255].next = Part_chain_end; // it used to hold the first position in the chain
 	
-	return chain_start;
+	return hits;
 }
 
 //
@@ -175,33 +207,23 @@ int compute_ranges(partitions_t& partitions, counters_t& end_pos)
 // Preconditions:
 //  1. the parameters were computed using compute_ranges()
 //
-int reduce_chain(partitions_t& partitions, int chain_start, const counters_t& end_pos) {
-	int pos = chain_start;
-	// Find first non-empty partition
-	while (pos != Part_chain_end) {
-		if (partitions[pos].count != end_pos[pos]) {
-			chain_start = pos;
-			pos = partitions[pos].next;
-			break;
+void reduce_chain(const counters_t& count, const counters_t& end_pos, counters_t& chain) {
+	int pos = 0;
+	int i = 0;
+	auto key = chain[0];
+	
+	while (key != Part_chain_end) {
+		auto next_key = chain[pos+1];
+		
+		if (count[key] != end_pos[key]) {
+			chain[i++] = chain[pos];
 		}
 		
-		pos = partitions[pos].next;
+		pos++;
+		key = next_key;
 	}
 	
-	int prev_pos = chain_start;
-	// Eliminate the empty nodes
-	while (pos != Part_chain_end) {
-		if (partitions[pos].count != end_pos[pos]) {
-			partitions[prev_pos].next = pos;
-			prev_pos = pos;
-		}
-			
-		pos = partitions[pos].next;
-	}
-	
-	partitions[prev_pos].next = Part_chain_end;
-	
-	return chain_start;
+	chain[i] = Part_chain_end;
 }
 
 //
@@ -253,8 +275,8 @@ void swap_elements_into_place(RandomIt first, counters_t& count, const counters_
 //  2. The buffer pointed to by 'first' is identical to the one that generated the ranges
 //
 template <typename RandomIt, typename ExtractKey>
-void swap_elements_into_place(RandomIt first, partitions_t& partitions, int chain_start,
-							  const counters_t& end_pos, ExtractKey&& ek)
+void swap_elements_into_place(RandomIt first, counters_t& count, const counters_t& end_pos,
+							  counters_t& chain, ExtractKey&& ek)
 {
 	using std::swap;
 	bool sorted = true;
@@ -268,24 +290,27 @@ void swap_elements_into_place(RandomIt first, partitions_t& partitions, int chai
 	do {
 		sorted = true;
 		
-		int pos = chain_start;
-		while (pos != Part_chain_end) {
-			int next = partitions[pos].next;
+		int pos = 0;
+		auto key = chain[0];
+		
+		while (key != Part_chain_end) {
+			auto next_key = chain[pos+1];
 			
-			for (auto val = partitions[pos].count; val < end_pos[pos]; ++val) {
+			for (auto val = count[key]; val < end_pos[key]; ++val) {
 				auto left = ek(first[val]);
-				auto right_index = partitions[left].count++;
+				auto right_index = count[left]++;
 				if (right_index != val) {
 					sorted = false;
 					swap(first[val], first[right_index]);
 				}
 			}
 			
-			pos = next;
+			pos++;
+			key = next_key;
 		}
 
 		if (sorted) break;
-		chain_start = reduce_chain(partitions, chain_start, end_pos);
+		reduce_chain(count, end_pos, chain);
 	} while (!sorted);
 }
 
