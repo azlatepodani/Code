@@ -19,9 +19,6 @@
 
 
 namespace azp {
-	
-	
-constexpr int Std_sort_threshold = 128;
 
 
 //
@@ -50,6 +47,7 @@ counters_t radix_pass_basic(RandomIt first, RandomIt last, ExtractKey&& ek)
 
 //
 // Convenience wrapper for uint8_t
+//
 // Preconditions:
 //  1. The range [first, last) will have less than INT_MAX elements
 //
@@ -59,55 +57,67 @@ inline void radix_sort(uint8_t* first, uint8_t* last) {
 
 //
 // Convenience wrapper for int8_t
+//
 // Preconditions:
 //  1. The range [first, last) will have less than INT_MAX elements
 //
 inline void radix_sort(int8_t* first, int8_t* last) {
 	uint8_t* f=(uint8_t*)first;
 	uint8_t* l=(uint8_t*)last;
-	for (auto p=f; p!=l; ++p) *p+=128;
+	
+	for (; f!=l; ++f) *f += 128;
+	f = (uint8_t*)first;
+	
 	radix_pass_basic(f, l, IdentityKey());
-	for (auto p=f; p!=l; ++p) *p-=128;
+	
+	for (; f!=l; ++f) *f -= 128;
 }
 
-
-
+//
+// Performs radix sort on unsigned 16bit values
+//
+// Preconditions:
+//  1. The range [first, last) will have less than INT_MAX elements
+//
 inline void radix_sort(uint16_t* first, uint16_t* last) {
 	counters_t end_pos = radix_pass_basic(first, last, ExtractHighByte());
 	
 	int32_t pos = 0;
 	for (int i=0; i<256; ++i) {
-		if (end_pos[i]-pos < 2) {//Std_sort_threshold) { // it makes no difference here
-			//std::sort(first+pos, first+end_pos[i]);
-		}
-		else {
-			radix_pass_basic(first+pos, first+end_pos[i], ExtractLowByte());
+		auto ep = end_pos[i];
+		if (end_pos[i]-pos > 1) {
+			radix_pass_basic(first+pos, first+ep, ExtractLowByte());
 		}
 
-		pos = end_pos[i];
+		pos = ep;
 	}
 }
 
-
+//
+// Performs radix sort on signed 16bit values
+//
+// Preconditions:
+//  1. The range [first, last) will have less than INT_MAX elements
+//
 inline void radix_sort(int16_t* first, int16_t* last) {
 	uint16_t* f=(uint16_t*)first;
 	uint16_t* l=(uint16_t*)last;
-	for (auto p=f; p!=l; ++p) *p+=0x8000;
 	
+	for (; f!=l; ++f) *f += 0x8000;
+	
+	f = (uint16_t*)first;
 	counters_t end_pos = radix_pass_basic(f, l, ExtractHighByte());
 	
 	int32_t pos = 0;
 	for (int i=0; i<256; ++i) {
-		if (end_pos[i]-pos < 2) {//Std_sort_threshold) {
-			//std::sort(first+pos, first+end_pos[i]);
-		}
-		else {
+		if (end_pos[i]-pos > 1) {
 			radix_pass_basic(f+pos, f+end_pos[i], ExtractLowByte());
 		}
 
 		pos = end_pos[i];
 	}
-	for (auto p=f; p!=l; ++p) *p-=0x8000;
+	
+	for (; f!=l; ++f) *f -= 0x8000;
 }
 
 
@@ -149,22 +159,6 @@ std::array<std::pair<int32_t, int32_t>, 257> fill_recurse_table(const counters_t
 }
 
 
-// void radix_uint16_p2(uint16_t* first, uint16_t* last) {
-	// std::array<partition_t, 256> count = {0};
-	
-	// compute_counts(count, first, last, ExtractHighByte());
-	
-	// auto recurse_table = fill_recurse_table(count);
-	// counters_t end_pos;
-
-	// auto start = compute_ranges(count, end_pos);
-	
-	// swap_elements_into_place(first, count, start, end_pos, ExtractHighByte());
-	
-	// for (int i=0; recurse_table[i].second; ++i) {
-		// radix_byte_p(first+recurse_table[i].first, first+recurse_table[i].second, ExtractLowByte());
-	// }
-// }
 
 void radix_uint16_p(uint16_t* first, uint16_t* last) {
 	counters_t count = {0};
@@ -227,33 +221,10 @@ void radix_word_p(T first, T last, ExtractKey& ek, NextSort& continuation) {
 }
 
 
-struct ExtractHighWord {
-	typedef uint32_t value_type;
-	
-	uint16_t operator()(const uint32_t& val) {
-		return val >> 16;
-	}
-};
 
 
-struct ExtractLowWord {
-	typedef uint32_t value_type;
-	
-	uint16_t operator()(const uint32_t& val) {
-		return val & 0xFFFF;
-	}
-};
 
 
-template <typename T, typename U>
-struct compose {
-	compose(T& f, U& g) : f(f), g(g) {}
-
-	uint8_t operator()(const typename U::value_type& val) { return f(g(val)); }
-	
-	T& f;
-	U& g;
-};
 
 using compose4 = compose<ExtractHighByte, ExtractHighWord>;
 using compose3 = compose<ExtractLowByte,  ExtractHighWord>;
@@ -274,91 +245,36 @@ void radix_uint32_p(uint32_t* first, uint32_t* last) {
 
 
 
-struct ExtractStringChar {
-	typedef std::wstring value_type;
-	
-	explicit ExtractStringChar(int offset) : offset(offset) {}
-	uint8_t operator()(const std::string& str) {
-		return str[offset];
-	}
-	
-	uint16_t operator()(const std::wstring& str) {
-		return str[offset];
-	}
-	
-	int offset;
-};
 
 
 
+bool compare(const std::string& l, const std::string& r, int round) {
+	return strcmp(&l[round], &r[round]) < 0;
+}
 
 
-// void radix_string(std::string* first, std::string* last, int round) {
-	// std::array<partition_t, 256> count = {0};
-	
-	// compute_counts(count, first, last, ExtractStringChar(round));
-	
-	// counters_t end_pos;
-
-	// auto start = compute_ranges(count, end_pos);
-	
-	// swap_elements_into_place(first, count, start, end_pos, ExtractStringChar(round));
-	
-	// int32_t pos = 0;
-	// //int32_t old_prefix = 0;
-
-	// for (int i=0; i<256; ++i) {
-		// while (first[pos].size() <= round+1) {
-				// ++pos; if (pos == end_pos[i]) goto _after_sort;
-			// }
-			
-		// /*if (end_pos[i]-pos < 128) {
-			// //ExtractStringChar ek(round+1);
-			// std::sort(first+pos, first+end_pos[i], [r = round+1](const std::string& left, const std::string& right) {
-				// //ExtractLowByte ek;
-				// return left.length() < right.length() || strcmp(&left[r], &right[r]) < 0;
-			// });
-		// }
-		// else */if (end_pos[i]-pos > 1) {
-			
-			// radix_string(first+pos, first+end_pos[i], round+1);
-		// }
-		
-		// pos = end_pos[i];
-		// _after_sort:;
-		// //old_prefix = end_pos[i];
-	// }
-// }
+bool compare(const std::wstring& l, const std::wstring& r, int round) {
+	return wcscmp(&l[round], &r[round]) < 0;
+}
 
 
-
-void radix_string(std::string* first, std::string* last, int round) {
-	counters_t count = {0};
-	
-	compute_counts(count, first, last, ExtractStringChar(round));
-	
-	counters_t chain;
-	counters_t end_pos;
-
-	auto recurse_table = fill_recurse_table(count);
-	compute_ranges(count, end_pos, chain);
-	
-	swap_elements_into_place(first, count, end_pos, chain, ExtractStringChar(round));
-	
+template <typename T, typename ExtractKey, typename NextSort>
+void recurse_down_r(T first, std::array<std::pair<int32_t, int32_t>, 257>& recurse_table, ExtractKey& ek, NextSort& continuation, int) {
+	int round = get_key_round(ek);
 	for (int i=0; recurse_table[i].second; ++i) {
-		while (first[recurse_table[i].first].size() <= round+1) {
-				++recurse_table[i].first; if (recurse_table[i].first == recurse_table[i].second) goto _after_sort;
+		while (first[recurse_table[i].first].size() <= unsigned(round+1)) {
+				++recurse_table[i].first;
+				if (recurse_table[i].first == recurse_table[i].second) goto _after_sort;
 			}
-			
-		auto diff = recurse_table[i].second - recurse_table[i].first;
 		
-		//if (diff <= 1) { }
-		//else
-		if (diff > 128) {
-			radix_string(first+recurse_table[i].first, first+recurse_table[i].second, round+1);
+		auto diff = recurse_table[i].second - recurse_table[i].first;
+		if (diff > 50) {		// magic number empirically determined
+			continuation(first+recurse_table[i].first, first+recurse_table[i].second);
 		}
-		else {
-			std::sort(first+recurse_table[i].first, first+recurse_table[i].second);
+		else if (diff > 1) {
+			std::sort(first+recurse_table[i].first, first+recurse_table[i].second, [round](const auto& l, const auto& r) {
+				return compare(l, r, round);
+			});
 		}
 		
 		_after_sort:;
@@ -367,24 +283,15 @@ void radix_string(std::string* first, std::string* last, int round) {
 
 
 template <typename T, typename ExtractKey, typename NextSort>
-void recurse_down_r(T first, std::array<std::pair<int32_t, int32_t>, 257>& recurse_table, ExtractKey& ek, NextSort& continuation) {
-	int round = get_key_round(ek);
+void recurse_down_r(T first, std::array<std::pair<int32_t, int32_t>, 257>& recurse_table, ExtractKey& ek, NextSort& continuation, bool) {
 	for (int i=0; recurse_table[i].second; ++i) {
-		while (first[recurse_table[i].first].size() <= unsigned(round+1)) {
-				++recurse_table[i].first;
-				if (recurse_table[i].first == recurse_table[i].second) goto _after_sort;
-			}
-			
 		auto diff = recurse_table[i].second - recurse_table[i].first;
-		
-		if (diff > 128) {
+		if (diff > 75) {		// magic number empirically determined
 			continuation(first+recurse_table[i].first, first+recurse_table[i].second);
 		}
-		else {
+		else if (diff > 1) {
 			std::sort(first+recurse_table[i].first, first+recurse_table[i].second);
 		}
-		
-		_after_sort:;
 	}
 }
 
@@ -403,7 +310,7 @@ void radix_word_pr(T first, T last, ExtractKey& ek, NextSort& continuation) {
 	
 	swap_elements_into_place(first, count, end_pos, chain, ek);
 	
-	recurse_down_r(first, recurse_table, ek, continuation);
+	recurse_down_r(first, recurse_table, ek, continuation, typename ExtractKey::use_round());
 }
 
 
@@ -419,6 +326,10 @@ int get_key_round(const compose_cl& ek) {
 	return ek.g.offset;
 }
 
+int get_key_round(const ExtractStringChar& ek) {
+	return ek.offset;
+}
+
 void radix_string(std::wstring* first, std::wstring* last, int round) {
 	radix_word_pr(first, last, compose_ch(ExtractHighByte(), ExtractStringChar(round)),
 		[round](std::wstring* first, std::wstring* last) {
@@ -428,51 +339,38 @@ void radix_string(std::wstring* first, std::wstring* last, int round) {
 				});
 		});
 }
+
+
+void radix_string(std::string* first, std::string* last, int round) {
+	radix_word_pr(first, last, ExtractStringChar(round),
+		[round](std::string* first, std::string* last) {
+			radix_string(first, last, round+1);
+		});
+}
 		
-	
-	
-	
-	
-	// std::array<partition_t, 256> count = {0};
-	
-	// compute_counts(count, first, last, ExtractStringChar(round));
-	
-	// counters_t end_pos;
 
-	// auto recurse_table = fill_recurse_table(count);
-	// auto start = compute_ranges(count, end_pos);
-	
-	// swap_elements_into_place(first, count, start, end_pos, ExtractStringChar(round));
-	
-	// for (int i=0; recurse_table[i].second; ++i) {
-		// while (first[recurse_table[i].first].size() <= round+1) {
-				// ++recurse_table[i].first; if (recurse_table[i].first == recurse_table[i].second) goto _after_sort;
-			// }
-			
-		// auto diff = recurse_table[i].second - recurse_table[i].first;
-		
-		// //if (diff <= 1) { }
-		// //else
-		// if (diff > 128) {
-			// radix_string(first+recurse_table[i].first, first+recurse_table[i].second, round+1);
-		// }
-		// else {
-			// std::sort(first+recurse_table[i].first, first+recurse_table[i].second);
-		// }
-		
-		// _after_sort:;
-	// }
-//}
+
+
+void radix_sort(uint32_t* first, uint32_t* last) {
+	radix_word_pr(first, last, compose4(ExtractHighByte(), ExtractHighWord()), [](uint32_t* first, uint32_t* last) {
+		radix_word_pr(first, last, compose3(ExtractLowByte(), ExtractHighWord()), [](uint32_t* first, uint32_t* last) {
+			radix_word_pr(first, last, compose2(ExtractHighByte(), ExtractLowWord()), [](uint32_t* first, uint32_t* last) {
+				radix_pass_basic(first, last, compose1(ExtractLowByte(), ExtractLowWord()));
+			});
+		});
+	});
+}
 
 
 
 
 
 
-
-
-
-
-
+//
+// TODO:
+// - try the hits again
+// - reuse counters & chains
+// - 
+//
 
 } // namespace azp
