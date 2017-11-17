@@ -259,7 +259,7 @@ bool compare(const std::wstring& l, const std::wstring& r, int round) {
 
 
 template <typename T, typename ExtractKey, typename NextSort>
-void recurse_down_r(T first, std::array<std::pair<int32_t, int32_t>, 257>& recurse_table, ExtractKey& ek, NextSort& continuation, int) {
+void recurse_down_r(T first, std::array<std::pair<int32_t, int32_t>, 257>& recurse_table, ExtractKey& ek, NextSort& continuation, vector_key_t) {
 	int round = get_key_round(ek);
 	for (int i=0; recurse_table[i].second; ++i) {
 		while (first[recurse_table[i].first].size() <= unsigned(round+1)) {
@@ -283,7 +283,7 @@ void recurse_down_r(T first, std::array<std::pair<int32_t, int32_t>, 257>& recur
 
 
 template <typename T, typename ExtractKey, typename NextSort>
-void recurse_down_r(T first, std::array<std::pair<int32_t, int32_t>, 257>& recurse_table, ExtractKey& ek, NextSort& continuation, bool) {
+void recurse_down_r(T first, std::array<std::pair<int32_t, int32_t>, 257>& recurse_table, ExtractKey& ek, NextSort& continuation, scalar_key_t) {
 	for (int i=0; recurse_table[i].second; ++i) {
 		auto diff = recurse_table[i].second - recurse_table[i].first;
 		if (diff > 75) {		// magic number empirically determined

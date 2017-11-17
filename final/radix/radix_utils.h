@@ -17,6 +17,9 @@ using counters_t = std::array<int32_t, 256>;
 using long_counters_t = std::array<int64_t, 256>;
 
 
+using scalar_key_t = bool;
+using vector_key_t = int;
+
 //
 // The following types implement the ExtractKey concept's requirements
 //
@@ -27,7 +30,7 @@ using long_counters_t = std::array<int64_t, 256>;
 //
 struct IdentityKey {
 	// Type traits
-	typedef bool use_round;	// scalar type
+	typedef scalar_key_t use_round;
 	
 	uint8_t operator()(uint8_t val) {
 		return val;
@@ -43,7 +46,7 @@ struct IdentityKey {
 //
 struct ExtractHighByte {
 	// Type traits
-	typedef bool use_round; // scalar type
+	typedef scalar_key_t use_round;
 	
 	uint8_t operator()(uint16_t val) {
 		return val >> 8;
@@ -59,7 +62,7 @@ struct ExtractHighByte {
 //
 struct ExtractLowByte {
 	// Type traits
-	typedef bool use_round; // scalar type
+	typedef scalar_key_t use_round;
 	
 	uint8_t operator()(uint16_t val) {
 		return val & 0xFF;
@@ -76,7 +79,7 @@ struct ExtractLowByte {
 struct ExtractHighWord {
 	// Type traits
 	typedef uint32_t value_type;
-	typedef bool use_round; // scalar type
+	typedef scalar_key_t use_round;
 	
 	uint16_t operator()(const uint32_t& val) {
 		return val >> 16;
@@ -89,7 +92,7 @@ struct ExtractHighWord {
 struct ExtractLowWord {
 	// Type traits
 	typedef uint32_t value_type;
-	typedef bool use_round; // scalar type
+	typedef scalar_key_t use_round;
 	
 	uint16_t operator()(const uint32_t& val) {
 		return val & 0xFFFF;
@@ -102,7 +105,7 @@ struct ExtractLowWord {
 struct ExtractStringChar {
 	// Type traits
 	typedef std::wstring value_type;  // see 'compose' functor and its uses
-	typedef int use_round;            // vector type
+	typedef vector_key_t use_round;
 	
 	explicit ExtractStringChar(int offset) : offset(offset) {}
 	uint8_t operator()(const std::string& str) {
