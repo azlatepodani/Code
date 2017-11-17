@@ -7,11 +7,8 @@
 #include <random>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include "radix_sort.h"
+#include "..\..\radix\ska\ska_sort.hpp"
 
-
-
-using namespace azp;
 
 
 
@@ -160,21 +157,21 @@ void main() {
 	if (!SetThreadAffinityMask(GetCurrentThread(), 1)) printf("Affinity set failed\n");
 	 
 	
-	benchmark("v uint8", vec1, g, [](uint8_t* f, uint8_t* l){radix_sort(f,l);});
-	benchmark("v int8", vec2, g, [](int8_t* f, int8_t* l){radix_sort(f,l);});
-	benchmark("v uint16", vec3, g, [](uint16_t* f, uint16_t* l){radix_sort(f,l);});
-	benchmark("v int16", vec4, g, [](int16_t* f, int16_t* l){radix_sort(f,l);});
-	benchmark("v uint32", vec7, g, [](uint32_t* f, uint32_t* l){radix_sort(f,l);});
-	benchmark("v int32", vec8, g, [](int32_t* f, int32_t* l){radix_sort(f,l);});
-	//benchmark("v string", vec5, g, [](std::string* f, std::string* l){radix_string(f,l, 0);});
-	//benchmark("v wstring", vec6, g, [](std::wstring* f, std::wstring* l){radix_string(f,l, 0);});
-
+	benchmark("ss uint8", vec1, g, [](uint8_t* f, uint8_t* l){ska_sort(f,l);});
+	benchmark("ss int8", vec2, g, [](int8_t* f, int8_t* l){ska_sort(f,l);});
+	benchmark("ss uint16", vec3, g, [](uint16_t* f, uint16_t* l){ska_sort(f,l);});
+	benchmark("ss int16", vec4, g, [](int16_t* f, int16_t* l){ska_sort(f,l);});
+	benchmark("ss uint32", vec7, g, [](uint32_t* f, uint32_t* l){ska_sort(f,l);});
+	benchmark("ss int32", vec8, g, [](int32_t* f, int32_t* l){ska_sort(f,l);});
+	//benchmark("ss string", vec5, g, [](std::string* f, std::string* l){ska_sort(f,l);});
+	//benchmark("ss wstring", vec6, g, [](std::wstring* f, std::wstring* l){ska_sort(f,l);});//*/
+	
 	/*benchmark("s uint8", vec2, g, [](uint8_t* f, uint8_t* l){std::sort(f,l);});
 	benchmark("s int8", vec2, g, [](int8_t* f, int8_t* l){std::sort(f,l);});
 	benchmark("s uint16", vec3, g, [](uint16_t* f, uint16_t* l){std::sort(f,l);});
 	benchmark("s int16", vec4, g, [](int16_t* f, int16_t* l){std::sort(f,l);});//*/
-	//benchmark("s string", vec5, g, [](std::string* f, std::string* l){std::sort(f,l);});
-	//benchmark("s wstring", vec6, g, [](std::wstring* f, std::wstring* l){std::sort(f,l);});//
+	benchmark("s string", vec5, g, [](std::string* f, std::string* l){std::sort(f,l);});
+	benchmark("s wstring", vec6, g, [](std::wstring* f, std::wstring* l){std::sort(f,l);});//
 	
 	
 	printf("\n");

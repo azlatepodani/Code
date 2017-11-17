@@ -6,7 +6,9 @@
 //  1. RandomIt == random iterator; it has the same meaning as the STL's RandomAccessIterator
 //  2. ExtractKey is a callable entity with the following signature:
 //   	  uint8_t (const RandomIt::value_type&)
-//
+//  3. NextSort is a callable entity with the following signature:
+//        template <typename RandomIt>
+//		  void (RandomIt first, RandomIt last)
 //
 
 
@@ -15,6 +17,8 @@ namespace azp {
 
 using counters_t = std::array<int32_t, 256>;
 using long_counters_t = std::array<int64_t, 256>;
+
+using recurse_table_t = std::array<std::pair<int32_t, int32_t>, 257>;
 
 
 using scalar_key_t = bool;
@@ -128,7 +132,7 @@ struct compose {
 	// Type traits
 	using use_round = typename T::use_round;
 
-	compose(T& f, U& g) : f(f), g(g) {}
+	compose(T&& f, U&& g) : f(f), g(g) {}
 	
 	uint8_t operator()(const typename U::value_type& val) { return f(g(val)); }
 	
@@ -340,5 +344,91 @@ void swap_elements_into_place(RandomIt first, counters_t& count, const counters_
 }
 
 
+using compose_ch = compose<ExtractHighByte, ExtractStringChar>;
+using compose_cl = compose<ExtractLowByte,  ExtractStringChar>;
+
+int get_key_round(const compose_ch& ek) {
+	return ek.g.offset;
+}
+
+int get_key_round(const compose_cl& ek) {
+	return ek.g.offset;
+}
+
+int get_key_round(const ExtractStringChar& ek) {
+	return ek.offset;
+}
+
+bool compare(const std::string& l, const std::string& r, int round) {
+	return strcmp(&l[round], &r[round]) < 0;
+}
+
+
+bool compare(const std::wstring& l, const std::wstring& r, int round) {
+	return wcscmp(&l[round], &r[round]) < 0;
+}
+
+
+template <typename RandomIt, typename ExtractKey, typename NextSort>
+void recurse_depth_first(RandomIt first, recurse_table_t& recurse_table, ExtractKey&& ek,
+						 NextSort&& continuation, vector_key_t)
+{
+	int round = get_key_round(ek);
+	
+	for (int i=0; recurse_table[i].second; ++i) {
+		while (first[recurse_table[i].first].size() <= unsigned(round+1)) {
+			++recurse_table[i].first;
+			if (recurse_table[i].first == recurse_table[i].second) goto _after_sort;
+		}
+		
+		auto diff = recurse_table[i].second - recurse_table[i].first;
+		if (diff > 50) {		// magic number empirically determined
+			continuation(first+recurse_table[i].first, first+recurse_table[i].second);
+		}
+		else if (diff > 1) {
+			auto comp = [round](const auto& l, const auto& r) {
+				return compare(l, r, round);
+			};
+			std::sort(first+recurse_table[i].first, first+recurse_table[i].second, comp);
+		}
+		
+		_after_sort:;
+	}
+}
+
+
+template <typename RandomIt, typename ExtractKey, typename NextSort>
+void recurse_depth_first(RandomIt first, recurse_table_t& recurse_table, ExtractKey&&,
+						 NextSort&& continuation, scalar_key_t)
+{
+	for (int i=0; recurse_table[i].second; ++i) {
+		auto diff = recurse_table[i].second - recurse_table[i].first;
+		if (diff > 75) {		// magic number empirically determined
+			continuation(first+recurse_table[i].first, first+recurse_table[i].second);
+		}
+		else if (diff > 1) {
+			std::sort(first+recurse_table[i].first, first+recurse_table[i].second);
+		}
+	}
+}
+
+recurse_table_t fill_recurse_table(const counters_t& count) {
+	recurse_table_t recurse_table;
+	
+	int32_t start = 0;
+	int pos = 0;
+	for (int i=0; i<256; ++i) {
+        auto val = count[i];
+		if (count[i] > 1) {
+			recurse_table[pos++] = std::make_pair(start, start+val);
+		}
+		
+		start += val;
+	}
+	
+	recurse_table[pos].second = 0;
+	
+	return recurse_table;
+}
 	
 } // namespace azp
