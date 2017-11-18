@@ -4,15 +4,23 @@
 //
 // Concepts:
 //  1. RandomIt == random iterator; it has the same meaning as the STL's RandomAccessIterator
+//
 //  2. ExtractKey is a callable entity with the following signature:
 //   	  uint8_t (const RandomIt::value_type&)
+//     It returns a byte from the current element which will be used as the sorting key
+//
 //  3. NextSort is a callable entity with the following signature:
 //        template <typename RandomIt>
 //		  void (RandomIt first, RandomIt last)
+//     This function will be called to sort the elements within a radix partition.
 //
 
 
 namespace azp {
+
+//with VC it seems that adding noexcept slows things down a little
+#define NEX  /*noexcept*/
+#define CST_NEX const NEX 
 
 
 using counters_t = std::array<int32_t, 256>;
@@ -36,11 +44,11 @@ struct IdentityKey {
 	// Type traits
 	typedef scalar_key_t use_round;
 	
-	uint8_t operator()(uint8_t val) {
+	uint8_t operator()(uint8_t val) CST_NEX {
 		return val;
 	}
 	
-	uint8_t operator()(int8_t val) {
+	uint8_t operator()(int8_t val) CST_NEX {
 		return (uint8_t)val + 128;
 	}
 };
@@ -52,11 +60,11 @@ struct ExtractHighByte {
 	// Type traits
 	typedef scalar_key_t use_round;
 	
-	uint8_t operator()(uint16_t val) {
+	uint8_t operator()(uint16_t val) CST_NEX {
 		return val >> 8;
 	}
 	
-	uint8_t operator()(int16_t val) {
+	uint8_t operator()(int16_t val) CST_NEX {
 		return ((uint16_t)val + 0x8000) >> 8;
 	}
 };
@@ -68,11 +76,11 @@ struct ExtractLowByte {
 	// Type traits
 	typedef scalar_key_t use_round;
 	
-	uint8_t operator()(uint16_t val) {
+	uint8_t operator()(uint16_t val) CST_NEX {
 		return val & 0xFF;
 	}
 	
-	uint8_t operator()(int16_t val) {
+	uint8_t operator()(int16_t val) CST_NEX {
 		return ((uint16_t)val + 0x8000) & 0xFF;
 	}
 };
@@ -85,7 +93,7 @@ struct ExtractHighWord {
 	typedef uint32_t value_type;
 	typedef scalar_key_t use_round;
 	
-	uint16_t operator()(const uint32_t& val) {
+	uint16_t operator()(const uint32_t& val) CST_NEX {
 		return val >> 16;
 	}
 };
@@ -98,7 +106,7 @@ struct ExtractLowWord {
 	typedef uint32_t value_type;
 	typedef scalar_key_t use_round;
 	
-	uint16_t operator()(const uint32_t& val) {
+	uint16_t operator()(const uint32_t& val) CST_NEX {
 		return val & 0xFFFF;
 	}
 };
@@ -106,21 +114,40 @@ struct ExtractLowWord {
 //
 // Functor for string values, returns a (w)char at a given position
 //
+template <typename String>
 struct ExtractStringChar {
 	// Type traits
-	typedef std::wstring value_type;  // see 'compose' functor and its uses
+	typedef String value_type;
 	typedef vector_key_t use_round;
 	
-	explicit ExtractStringChar(int offset) : offset(offset) {}
-	uint8_t operator()(const std::string& str) {
+	explicit ExtractStringChar(int offset) NEX
+		: offset(offset)
+	{ }
+	
+	template <typename String>
+	struct key_type {
+		using type = uint8_t;
+	};
+	
+	template <>
+	struct key_type<std::wstring> {
+		using type = uint16_t;
+	};
+	
+	template <>
+	struct key_type<wchar_t*> {
+		using type = uint16_t;
+	};
+	
+	template <typename String>
+	using key_type_t = typename key_type<String>::type;
+	
+	key_type_t<String>
+	operator()(const String& str) CST_NEX {
 		return str[offset];
 	}
-	
-	uint16_t operator()(const std::wstring& str) {
-		return str[offset];
-	}
-	
-	int offset;
+
+	const int offset;
 };
 
 //
@@ -132,9 +159,12 @@ struct compose {
 	// Type traits
 	using use_round = typename T::use_round;
 
-	compose(T&& f, U&& g) : f(f), g(g) {}
+	compose(T&& f, U&& g) NEX
+		: f(f), g(g)
+	{ }
 	
-	uint8_t operator()(const typename U::value_type& val) { return f(g(val)); }
+	uint8_t operator()(const typename U::value_type& val) CST_NEX
+	{ return f(g(val)); }
 	
 	T& f;
 	U& g;
@@ -151,7 +181,8 @@ struct compose {
 //  2. The output parameter 'count' was 0-initialized
 //
 template <typename RandomIt, typename ExtractKey>
-void compute_counts(counters_t& count, RandomIt first, RandomIt last, ExtractKey&& ek)
+void compute_counts(counters_t& count, RandomIt first, RandomIt last,
+					ExtractKey&& ek) NEX
 {
 	for (; first != last; ++first) {
 		++count[ek(*first)];
@@ -168,7 +199,7 @@ void compute_counts(counters_t& count, RandomIt first, RandomIt last, ExtractKey
 // Preconditions:
 //  1. 'count' was initialized by compute_counts()
 //
-inline void compute_ranges(counters_t& count, counters_t& end_pos)
+inline void compute_ranges(counters_t& count, counters_t& end_pos) NEX
 {
 	int sum = count[0];
 	count[0] = 0;
@@ -193,7 +224,8 @@ constexpr int Part_chain_end = 256;
 // Preconditions:
 //  1. 'count' was initialized by compute_counts()
 //
-inline void compute_ranges(counters_t& count, counters_t& end_pos, counters_t& chain)
+inline void compute_ranges(counters_t& count, counters_t& end_pos,
+						   counters_t& chain) NEX
 {
 	int sum = count[0];
 	count[0] = 0;
@@ -223,7 +255,9 @@ inline void compute_ranges(counters_t& count, counters_t& end_pos, counters_t& c
 // Preconditions:
 //  1. the parameters were computed using compute_ranges()
 //
-inline void reduce_chain(const counters_t& count, const counters_t& end_pos, counters_t& chain) {
+inline void reduce_chain(const counters_t& count, const counters_t& end_pos,
+						 counters_t& chain) NEX
+{
 	int pos = 0;
 	int i = 0;
 	auto key = chain[0];
@@ -252,7 +286,8 @@ inline void reduce_chain(const counters_t& count, const counters_t& end_pos, cou
 //  2. The buffer pointed to by 'first' is identical to the one that generated the ranges
 //
 template <typename RandomIt, typename ExtractKey>
-void swap_elements_into_place(RandomIt first, counters_t& count, const counters_t& end_pos, ExtractKey&& ek)
+void swap_elements_into_place(RandomIt first, counters_t& count, const counters_t& end_pos,
+							  ExtractKey&& ek) NEX
 {
 	using std::swap;
 	bool sorted = true;
@@ -300,7 +335,7 @@ void swap_elements_into_place(RandomIt first, counters_t& count, const counters_
 //
 template <typename RandomIt, typename ExtractKey>
 void swap_elements_into_place(RandomIt first, counters_t& count, const counters_t& end_pos,
-							  counters_t& chain, ExtractKey&& ek)
+							  counters_t& chain, ExtractKey&& ek) NEX
 {
 	using std::swap;
 	bool sorted = true;
@@ -344,39 +379,83 @@ void swap_elements_into_place(RandomIt first, counters_t& count, const counters_
 }
 
 
-using compose_ch = compose<ExtractHighByte, ExtractStringChar>;
-using compose_cl = compose<ExtractLowByte,  ExtractStringChar>;
+template <typename S>
+using compose_ch = compose<ExtractHighByte, ExtractStringChar<S>>;
 
-int get_key_round(const compose_ch& ek) {
+template <typename S>
+using compose_cl = compose<ExtractLowByte,  ExtractStringChar<S>>;
+
+//
+// Helper functions for vector keys
+//
+template <typename S>
+int get_key_round(const compose_ch<S>& ek) NEX {
 	return ek.g.offset;
 }
 
-int get_key_round(const compose_cl& ek) {
+template <typename S>
+int get_key_round(const compose_cl<S>& ek) NEX {
 	return ek.g.offset;
 }
 
-int get_key_round(const ExtractStringChar& ek) {
+template <typename S>
+int get_key_round(const ExtractStringChar<S>& ek) NEX {
 	return ek.offset;
 }
 
-bool compare(const std::string& l, const std::string& r, int round) {
+//
+// std::sort() comparison functions for strings. The first 'round' characters are
+// identical, so the comparison should start with the next character.
+//
+
+bool compare(const std::string& l, const std::string& r, int round) NEX {
 	return strcmp(&l[round], &r[round]) < 0;
 }
 
-
-bool compare(const std::wstring& l, const std::wstring& r, int round) {
+bool compare(const std::wstring& l, const std::wstring& r, int round) NEX {
 	return wcscmp(&l[round], &r[round]) < 0;
 }
 
+bool compare(const char* l, const char* r, int round) NEX {
+	return strcmp(&l[round], &r[round]) < 0;
+}
 
+bool compare(const wchar_t* l, const wchar_t* r, int round) NEX {
+	return wcscmp(&l[round], &r[round]) < 0;
+}
+
+//
+// Functions that check if a string has reached its end for a given round.
+// These are already sorted.
+//
+
+template <typename String>
+bool end_of_string(const String& str, int round) NEX {
+	return str.size() <= unsigned(round);
+}
+
+template <>
+bool end_of_string<char *>(char* const& str, int round) NEX {
+	return str[round] == 0;
+}
+
+template <>
+bool end_of_string<wchar_t *>(wchar_t* const& str, int round) NEX {
+	return str[round] == 0;
+}
+
+//
+// Calls the continuation function for each partition.
+// This function treats the key like a vector, the 'round' being the index
+//
 template <typename RandomIt, typename ExtractKey, typename NextSort>
 void recurse_depth_first(RandomIt first, recurse_table_t& recurse_table, ExtractKey&& ek,
-						 NextSort&& continuation, vector_key_t)
+						 NextSort&& continuation, vector_key_t) NEX
 {
 	int round = get_key_round(ek);
 	
 	for (int i=0; recurse_table[i].second; ++i) {
-		while (first[recurse_table[i].first].size() <= unsigned(round+1)) {
+		while (end_of_string(first[recurse_table[i].first], round+1)) {
 			++recurse_table[i].first;
 			if (recurse_table[i].first == recurse_table[i].second) goto _after_sort;
 		}
@@ -396,10 +475,12 @@ void recurse_depth_first(RandomIt first, recurse_table_t& recurse_table, Extract
 	}
 }
 
-
+//
+// Calls the continuation function for each partition.
+//
 template <typename RandomIt, typename ExtractKey, typename NextSort>
 void recurse_depth_first(RandomIt first, recurse_table_t& recurse_table, ExtractKey&&,
-						 NextSort&& continuation, scalar_key_t)
+						 NextSort&& continuation, scalar_key_t) NEX
 {
 	for (int i=0; recurse_table[i].second; ++i) {
 		auto diff = recurse_table[i].second - recurse_table[i].first;
@@ -412,7 +493,10 @@ void recurse_depth_first(RandomIt first, recurse_table_t& recurse_table, Extract
 	}
 }
 
-recurse_table_t fill_recurse_table(const counters_t& count) {
+//
+// Creates a table for each partition that has at least 2 elements.
+//
+recurse_table_t fill_recurse_table(const counters_t& count) NEX {
 	recurse_table_t recurse_table;
 	
 	int32_t start = 0;
