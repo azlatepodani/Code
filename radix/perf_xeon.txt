@@ -1,0 +1,100 @@
+CPU
+    Intel(R) Xeon(R) CPU E5-1620 v3 @ 3.50GHz
+
+    Base speed:    3,50 GHz
+    Sockets:    1
+    Cores:    4
+    Logical processors:    8
+    Virtualization:    Enabled
+    L1 cache:    256 KB
+    L2 cache:    1,0 MB
+    L3 cache:    10,0 MB
+
+	
+C:\Temp\benchmark\extra>test.exe
+v uint8 1500000  time=5854us,  time/n=0.003903, time/nlogn=0.000196
+v int8 1500000  time=5971us,  time/n=0.003981, time/nlogn=0.000200
+v uint16 1500000  time=9936us,  time/n=0.006624, time/nlogn=0.000332
+v int16 1500000  time=9842us,  time/n=0.006561, time/nlogn=0.000329
+v uint32 1500000  time=26776us,  time/n=0.017851, time/nlogn=0.000896
+v int32 1500000  time=27367us,  time/n=0.018245, time/nlogn=0.000915
+v string 50000  time=11451us,  time/n=0.229020, time/nlogn=0.011490
+v char* 50000  time=7315us,  time/n=0.146300, time/nlogn=0.007340
+v wstring 50000  time=13364us,  time/n=0.267280, time/nlogn=0.013410
+v wchar_t* 50000  time=7541us,  time/n=0.150820, time/nlogn=0.007567
+
+C:\Temp\benchmark\extra>test.exe
+v uint8 1500000  time=5850us,  time/n=0.003900, time/nlogn=0.000196
+v int8 1500000  time=5974us,  time/n=0.003983, time/nlogn=0.000200
+v uint16 1500000  time=9715us,  time/n=0.006477, time/nlogn=0.000325
+v int16 1500000  time=9672us,  time/n=0.006448, time/nlogn=0.000324
+v uint32 1500000  time=26806us,  time/n=0.017871, time/nlogn=0.000897
+v int32 1500000  time=27363us,  time/n=0.018242, time/nlogn=0.000915
+v string 50000  time=11527us,  time/n=0.230540, time/nlogn=0.011567
+v char* 50000  time=7706us,  time/n=0.154120, time/nlogn=0.007732
+v wstring 50000  time=13029us,  time/n=0.260580, time/nlogn=0.013074
+v wchar_t* 50000  time=8973us,  time/n=0.179460, time/nlogn=0.009004
+
+
+C:\Temp\benchmark\extra>test_boost.exe
+v uint8 1500000  time=11903us,  time/n=0.007935, time/nlogn=0.000398
+v int8 1500000  time=12655us,  time/n=0.008437, time/nlogn=0.000423
+v uint16 1500000  time=49349us,  time/n=0.032899, time/nlogn=0.001651
+v int16 1500000  time=48862us,  time/n=0.032575, time/nlogn=0.001634
+v uint32 1500000  time=71992us,  time/n=0.047995, time/nlogn=0.002408
+v int32 1500000  time=74517us,  time/n=0.049678, time/nlogn=0.002492
+v string 50000  time=13706us,  time/n=0.274120, time/nlogn=0.013753
+v wstring 50000  time=12662us,  time/n=0.253240, time/nlogn=0.012705
+
+C:\Temp\benchmark\extra>test_boost.exe
+v uint8 1500000  time=11499us,  time/n=0.007666, time/nlogn=0.000385
+v int8 1500000  time=12240us,  time/n=0.008160, time/nlogn=0.000409
+v uint16 1500000  time=49193us,  time/n=0.032795, time/nlogn=0.001645
+v int16 1500000  time=49096us,  time/n=0.032731, time/nlogn=0.001642
+v uint32 1500000  time=72109us,  time/n=0.048073, time/nlogn=0.002412
+v int32 1500000  time=72793us,  time/n=0.048529, time/nlogn=0.002435
+v string 50000  time=11939us,  time/n=0.238780, time/nlogn=0.011980
+v wstring 50000  time=13632us,  time/n=0.272640, time/nlogn=0.013679
+
+
+C:\Temp\benchmark\extra>test_ska.exe
+v uint8 1500000  time=5944us,  time/n=0.003963, time/nlogn=0.000199
+v int8 1500000  time=6552us,  time/n=0.004368, time/nlogn=0.000219
+v uint16 1500000  time=12678us,  time/n=0.008452, time/nlogn=0.000424
+v int16 1500000  time=12786us,  time/n=0.008524, time/nlogn=0.000428
+v uint32 1500000  time=26607us,  time/n=0.017738, time/nlogn=0.000890
+v int32 1500000  time=29709us,  time/n=0.019806, time/nlogn=0.000994
+v string 50000  time=12808us,  time/n=0.256160, time/nlogn=0.012852
+v wstring 50000  time=12904us,  time/n=0.258080, time/nlogn=0.012948
+
+C:\Temp\benchmark\extra>test_ska.exe
+v uint8 1500000  time=5755us,  time/n=0.003837, time/nlogn=0.000192
+v int8 1500000  time=6374us,  time/n=0.004249, time/nlogn=0.000213
+v uint16 1500000  time=12237us,  time/n=0.008158, time/nlogn=0.000409
+v int16 1500000  time=12797us,  time/n=0.008531, time/nlogn=0.000428
+v uint32 1500000  time=26397us,  time/n=0.017598, time/nlogn=0.000883
+v int32 1500000  time=27699us,  time/n=0.018466, time/nlogn=0.000926
+v string 50000  time=11694us,  time/n=0.233880, time/nlogn=0.011734
+v wstring 50000  time=11908us,  time/n=0.238160, time/nlogn=0.011949
+
+
+C:\Temp\benchmark\extra>test_stl.exe
+v uint8 1500000  time=48025us,  time/n=0.032017, time/nlogn=0.001606
+v int8 1500000  time=47082us,  time/n=0.031388, time/nlogn=0.001575
+v uint16 1500000  time=102776us,  time/n=0.068517, time/nlogn=0.003438
+v int16 1500000  time=102510us,  time/n=0.068340, time/nlogn=0.003429
+v uint32 1500000  time=123686us,  time/n=0.082457, time/nlogn=0.004137
+v int32 1500000  time=125590us,  time/n=0.083727, time/nlogn=0.004201
+v string 50000  time=17882us,  time/n=0.357640, time/nlogn=0.017943
+v wstring 50000  time=17397us,  time/n=0.347940, time/nlogn=0.017457
+
+C:\Temp\benchmark\extra>test_stl.exe
+v uint8 1500000  time=47020us,  time/n=0.031347, time/nlogn=0.001573
+v int8 1500000  time=47213us,  time/n=0.031475, time/nlogn=0.001579
+v uint16 1500000  time=102555us,  time/n=0.068370, time/nlogn=0.003430
+v int16 1500000  time=102700us,  time/n=0.068467, time/nlogn=0.003435
+v uint32 1500000  time=123919us,  time/n=0.082613, time/nlogn=0.004145
+v int32 1500000  time=125612us,  time/n=0.083741, time/nlogn=0.004201
+v string 50000  time=18219us,  time/n=0.364380, time/nlogn=0.018282
+v wstring 50000  time=18359us,  time/n=0.367180, time/nlogn=0.018422
+
