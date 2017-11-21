@@ -1,0 +1,102 @@
+CPU
+
+	Intel(R) Core(TM) i7-3770K CPU @ 3.50GHz
+
+	Maximum speed:	3,90 GHz
+	Sockets:	1
+	Cores:	4
+	Logical processors:	8
+	Virtualization:	Enabled
+	L1 cache:	256 KB
+	L2 cache:	1,0 MB
+	L3 cache:	8,0 MB
+
+
+g:\Work\github\radix>test
+v uint8 1500000  time=5600us,  time/n=0.003733, time/nlogn=0.000187
+v int8 1500000  time=6052us,  time/n=0.004035, time/nlogn=0.000202
+v uint16 1500000  time=9703us,  time/n=0.006469, time/nlogn=0.000325
+v int16 1500000  time=10022us,  time/n=0.006681, time/nlogn=0.000335
+v uint32 1500000  time=27125us,  time/n=0.018083, time/nlogn=0.000907
+v int32 1500000  time=27781us,  time/n=0.018521, time/nlogn=0.000929
+v string 50000  time=11243us,  time/n=0.224860, time/nlogn=0.011282
+v char* 50000  time=6764us,  time/n=0.135280, time/nlogn=0.006787
+v wstring 50000  time=11402us,  time/n=0.228040, time/nlogn=0.011441
+v wchar_t* 50000  time=6478us,  time/n=0.129560, time/nlogn=0.006500
+
+g:\Work\github\radix>test
+v uint8 1500000  time=5601us,  time/n=0.003734, time/nlogn=0.000187
+v int8 1500000  time=6127us,  time/n=0.004085, time/nlogn=0.000205
+v uint16 1500000  time=9736us,  time/n=0.006491, time/nlogn=0.000326
+v int16 1500000  time=10026us,  time/n=0.006684, time/nlogn=0.000335
+v uint32 1500000  time=27060us,  time/n=0.018040, time/nlogn=0.000905
+v int32 1500000  time=27805us,  time/n=0.018537, time/nlogn=0.000930
+v string 50000  time=10474us,  time/n=0.209480, time/nlogn=0.010510
+v char* 50000  time=6849us,  time/n=0.136980, time/nlogn=0.006873
+v wstring 50000  time=12276us,  time/n=0.245520, time/nlogn=0.012318
+v wchar_t* 50000  time=6898us,  time/n=0.137960, time/nlogn=0.006922
+
+
+g:\Work\github\radix>test_ska
+v uint8 1500000  time=5816us,  time/n=0.003877, time/nlogn=0.000195
+v int8 1500000  time=6202us,  time/n=0.004135, time/nlogn=0.000207
+v uint16 1500000  time=12793us,  time/n=0.008529, time/nlogn=0.000428
+v int16 1500000  time=13257us,  time/n=0.008838, time/nlogn=0.000443
+v uint32 1500000  time=27374us,  time/n=0.018249, time/nlogn=0.000916
+v int32 1500000  time=28433us,  time/n=0.018955, time/nlogn=0.000951
+v string 50000  time=10725us,  time/n=0.214500, time/nlogn=0.010762
+v wstring 50000  time=12341us,  time/n=0.246820, time/nlogn=0.012383
+
+g:\Work\github\radix>test_ska
+v uint8 1500000  time=5805us,  time/n=0.003870, time/nlogn=0.000194
+v int8 1500000  time=6221us,  time/n=0.004147, time/nlogn=0.000208
+v uint16 1500000  time=12753us,  time/n=0.008502, time/nlogn=0.000427
+v int16 1500000  time=13182us,  time/n=0.008788, time/nlogn=0.000441
+v uint32 1500000  time=27181us,  time/n=0.018121, time/nlogn=0.000909
+v int32 1500000  time=28264us,  time/n=0.018843, time/nlogn=0.000945
+v string 50000  time=10870us,  time/n=0.217400, time/nlogn=0.010907
+v wstring 50000  time=10718us,  time/n=0.214360, time/nlogn=0.010755
+
+
+g:\Work\github\radix>test_boost
+v uint8 1500000  time=11345us,  time/n=0.007563, time/nlogn=0.000379
+v int8 1500000  time=11660us,  time/n=0.007773, time/nlogn=0.000390
+v uint16 1500000  time=49104us,  time/n=0.032736, time/nlogn=0.001642
+v int16 1500000  time=49444us,  time/n=0.032963, time/nlogn=0.001654
+v uint32 1500000  time=73595us,  time/n=0.049063, time/nlogn=0.002462
+v int32 1500000  time=74196us,  time/n=0.049464, time/nlogn=0.002482
+v string 50000  time=11746us,  time/n=0.234920, time/nlogn=0.011786
+v wstring 50000  time=11711us,  time/n=0.234220, time/nlogn=0.011751
+
+g:\Work\github\radix>test_boost
+v uint8 1500000  time=11454us,  time/n=0.007636, time/nlogn=0.000383
+v int8 1500000  time=11840us,  time/n=0.007893, time/nlogn=0.000396
+v uint16 1500000  time=49277us,  time/n=0.032851, time/nlogn=0.001648
+v int16 1500000  time=49163us,  time/n=0.032775, time/nlogn=0.001644
+v uint32 1500000  time=73880us,  time/n=0.049253, time/nlogn=0.002471
+v int32 1500000  time=73948us,  time/n=0.049299, time/nlogn=0.002473
+v string 50000  time=10594us,  time/n=0.211880, time/nlogn=0.010630
+v wstring 50000  time=11260us,  time/n=0.225200, time/nlogn=0.011299
+
+
+g:\Work\github\radix>test_stl
+v uint8 1500000  time=46534us,  time/n=0.031023, time/nlogn=0.001556
+v int8 1500000  time=45994us,  time/n=0.030663, time/nlogn=0.001538
+v uint16 1500000  time=100108us,  time/n=0.066739, time/nlogn=0.003348
+v int16 1500000  time=100149us,  time/n=0.066766, time/nlogn=0.003350
+v uint32 1500000  time=122050us,  time/n=0.081367, time/nlogn=0.004082
+v int32 1500000  time=122701us,  time/n=0.081801, time/nlogn=0.004104
+v string 50000  time=17664us,  time/n=0.353280, time/nlogn=0.017725
+v wstring 50000  time=17788us,  time/n=0.355760, time/nlogn=0.017849
+
+g:\Work\github\radix>test_stl
+v uint8 1500000  time=46711us,  time/n=0.031141, time/nlogn=0.001562
+v int8 1500000  time=45987us,  time/n=0.030658, time/nlogn=0.001538
+v uint16 1500000  time=100147us,  time/n=0.066765, time/nlogn=0.003350
+v int16 1500000  time=99975us,  time/n=0.066650, time/nlogn=0.003344
+v uint32 1500000  time=122160us,  time/n=0.081440, time/nlogn=0.004086
+v int32 1500000  time=122440us,  time/n=0.081627, time/nlogn=0.004095
+v string 50000  time=18065us,  time/n=0.361300, time/nlogn=0.018127
+v wstring 50000  time=17589us,  time/n=0.351780, time/nlogn=0.017649
+
+

@@ -7,11 +7,8 @@
 #include <random>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include "radix_sort.h"
+#include "boost/sort/spreadsort/spreadsort.hpp"
 
-
-
-using namespace azp;
 
 
 
@@ -70,24 +67,6 @@ void gen_random_string_array(int n, int min_len, int max_len,
 	}
 }
 
-
-void gen_random_string_array(int n, int min_len, int max_len,
-							 std::vector<wchar_t *>& vec,
-							 std::mt19937& g)
-{
-	auto x = std::uniform_int_distribution<int>(32,0xD7FF);
-	auto y = std::uniform_int_distribution<int>(min_len, max_len);
-	
-	for (int i=0; i<n; ++i) {
-		int len = y(g);
-		wchar_t * s = new wchar_t[len];
-		for (int j=0; j<len; ++j) {
-			s[j] = x(g);
-		}
-		vec.emplace_back(std::move(s));
-	}
-}
-
 	template <typename U> struct other { typedef U type; };
 	template <> struct other<int8_t> { typedef int type; };
 	template <> struct other<uint8_t> { typedef int type; };
@@ -120,12 +99,10 @@ void benchmark(int size, char * desc, std::vector<T>& vec, std::mt19937& g, Fn a
 	std::vector<T> backup(vec.begin(), vec.begin()+size);
 	alg(&vec[0], &vec[0]+size);
 	
-	// if (!std::is_sorted(&vec[0], &vec[0]+size, [](const char* l, const char* r){
-		// return compare(l, r, 0);
-	// })) __debugbreak();
+	if (!std::is_sorted(&vec[0], &vec[0]+size)) __debugbreak();
 	
 	int i=0;
-	int maxi = 1500000 / size;
+	int maxi = 15;//00000 / size;
 	for (; i<maxi; ++i) {
 		vec = std::vector<T>(backup.begin(), backup.begin()+size);
 		QueryPerformanceCounter(&li);
@@ -152,12 +129,7 @@ void benchmark(char * desc, std::vector<T>& vec, std::mt19937& g, Fn alg)
 
 
 void main() {
-	
-
 	std::mt19937 g(0xCC6699);
-	
-	
-	
 		 
 	 
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
@@ -168,50 +140,36 @@ void main() {
 	{
 	std::vector<uint8_t> vec1;
 	gen_random_int_array<uint8_t>(1500000, 0, 255, vec1, g);
-	benchmark("v uint8", vec1, g, [](uint8_t* f, uint8_t* l){radix_sort(f,l);});
+	benchmark("v uint8", vec1, g, [](uint8_t* f, uint8_t* l){boost::sort::spreadsort::spreadsort(f,l);});
 	}{
 	std::vector<int8_t> vec2;
 	gen_random_int_array<int8_t>(1500000, -128, 127, vec2, g);
-	benchmark("v int8", vec2, g, [](int8_t* f, int8_t* l){radix_sort(f,l);});
+	benchmark("v int8", vec2, g, [](int8_t* f, int8_t* l){boost::sort::spreadsort::spreadsort(f,l);});
 	}{
 	std::vector<uint16_t> vec3;
 	gen_random_int_array<uint16_t>(1500000, 0, 0xFFFF, vec3, g);
-	benchmark("v uint16", vec3, g, [](uint16_t* f, uint16_t* l){radix_sort(f,l);});
+	benchmark("v uint16", vec3, g, [](uint16_t* f, uint16_t* l){boost::sort::spreadsort::spreadsort(f,l);});
 	}{
 	std::vector<int16_t> vec4;
 	gen_random_int_array<int16_t>(1500000, 0x8000, 0x7FFF, vec4, g);
-	benchmark("v int16", vec4, g, [](int16_t* f, int16_t* l){radix_sort(f,l);});
+	benchmark("v int16", vec4, g, [](int16_t* f, int16_t* l){boost::sort::spreadsort::spreadsort(f,l);});
 	}{
 	std::vector<uint32_t> vec7; 
 	gen_random_int_array<uint32_t>(1500000, 0, 0xFFFFFFFF, vec7, g);
-	benchmark("v uint32", vec7, g, [](uint32_t* f, uint32_t* l){radix_sort(f,l);});
+	benchmark("v uint32", vec7, g, [](uint32_t* f, uint32_t* l){boost::sort::spreadsort::spreadsort(f,l);});
 	}{
 	std::vector<int32_t> vec8;
 	gen_random_int_array<int32_t>(1500000, 0x80000000, 0x7FFFFFFF, vec8, g);
-	benchmark("v int32", vec8, g, [](int32_t* f, int32_t* l){radix_sort(f,l);});
+	benchmark("v int32", vec8, g, [](int32_t* f, int32_t* l){boost::sort::spreadsort::spreadsort(f,l);});
 	}{
 	std::vector<std::string> vec5;
 	gen_random_string_array(50000, 2, 10240, vec5, g);
-	//benchmark("v string", vec5, g, [](std::string* f, std::string* l){radix_string(f,l, 0);});
-	}{
-	std::vector<char *> vec9;
-	gen_random_string_array(50000, 2, 10240, vec9, g);
-	//benchmark("v char*", vec9, g, [](char** f, char** l){radix_string(f,l, 0);});
+	benchmark("v string", vec5, g, [](std::string* f, std::string* l){boost::sort::spreadsort::spreadsort(f,l);});
 	}{
 	std::vector<std::wstring> vec6;
 	gen_random_string_array(50000, 2, 10240, vec6, g);
-	//benchmark("v wstring", vec6, g, [](std::wstring* f, std::wstring* l){radix_string(f,l, 0);});
-	}{
-	std::vector<wchar_t *> vec10;
-	gen_random_string_array(50000, 2, 10240, vec10, g);
-	//benchmark("v wchar_t*", vec10, g, [](wchar_t** f, wchar_t** l){radix_string(f,l, 0);});
+	benchmark("v wstring", vec6, g, [](std::wstring* f, std::wstring* l){boost::sort::spreadsort::spreadsort(f,l);});
 	}
-	/*benchmark("s uint8", vec2, g, [](uint8_t* f, uint8_t* l){std::sort(f,l);});
-	benchmark("s int8", vec2, g, [](int8_t* f, int8_t* l){std::sort(f,l);});
-	benchmark("s uint16", vec3, g, [](uint16_t* f, uint16_t* l){std::sort(f,l);});
-	benchmark("s int16", vec4, g, [](int16_t* f, int16_t* l){std::sort(f,l);});//*/
-	//benchmark("s string", vec5, g, [](std::string* f, std::string* l){std::sort(f,l);});
-	//benchmark("s wstring", vec6, g, [](std::wstring* f, std::wstring* l){std::sort(f,l);});//
 	
 	
 	printf("\n");
