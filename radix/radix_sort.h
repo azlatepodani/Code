@@ -4,8 +4,6 @@
 #include <cstdint>
 #include <array>
 #include <algorithm>
-// #define WIN32_LEAN_AND_MEAN
-// #include <windows.h>
 
 #include "radix_utils.h"
 
@@ -176,14 +174,15 @@ inline void radix_sort(int32_t* first, int32_t* last) NEX
 }
 
 //
-// Utility function for std::string values
+// Utility function for strings of char like values
 //
 // Preconditions:
 //  1. The range [first, last) will have less than INT_MAX elements
 //
-inline void radix_string(std::string* first, std::string* last, int round) NEX {
-	radix_pass_recurse(first, last, ExtractStringChar<std::string>(round),
-		[round](std::string* first, std::string* last) {
+template <typename String>
+void radix_string(String* first, String* last, int round) NEX {
+	radix_pass_recurse(first, last, ExtractStringChar<String>(round),
+		[round](String* first, String* last) {
 			radix_string(first, last, round+1);
 		});
 }
@@ -199,19 +198,6 @@ inline void radix_sort(std::string* first, std::string* last) NEX {
 }
 
 //
-// Utility function for char* values
-//
-// Preconditions:
-//  1. The range [first, last) will have less than INT_MAX elements
-//
-inline void radix_string(char** first, char** last, int round) NEX {
-	radix_pass_recurse(first, last, ExtractStringChar<char*>(round),
-		[round](char** first, char** last) {
-			radix_string(first, last, round+1);
-		});
-}
-
-//
 // Performs radix sort on char* values
 //
 // Preconditions:
@@ -222,22 +208,23 @@ inline void radix_sort(char** first, char** last) NEX {
 }
 
 //
-// Utility function for std::wstring values
+// Utility function for strings of wchar_t like values
 //
 // Preconditions:
 //  1. The range [first, last) will have less than INT_MAX elements
 //
-inline void radix_string(std::wstring* first, std::wstring* last, int round) NEX
+template <typename WString>
+void radix_wstring(WString* first, WString* last, int round) NEX
 {
-	radix_pass_recurse(first, last, compose_ch<std::wstring>(ExtractHighByte(),
-		ExtractStringChar<std::wstring>(round)),
-		[round](std::wstring* first, std::wstring* last)
+	radix_pass_recurse(first, last, compose_ch<WString>(ExtractHighByte(),
+		ExtractStringChar<WString>(round)),
+		[round](WString* first, WString* last)
 		{
-			radix_pass_recurse(first, last, compose_cl<std::wstring>(ExtractLowByte(),
-				ExtractStringChar<std::wstring>(round)),
-				[round](std::wstring* first, std::wstring* last)
+			radix_pass_recurse(first, last, compose_cl<WString>(ExtractLowByte(),
+				ExtractStringChar<WString>(round)),
+				[round](WString* first, WString* last)
 				{
-					radix_string(first, last, round+1);
+					radix_wstring(first, last, round+1);
 				});
 		});
 }
@@ -249,28 +236,7 @@ inline void radix_string(std::wstring* first, std::wstring* last, int round) NEX
 //  1. The range [first, last) will have less than INT_MAX elements
 //
 inline void radix_sort(std::wstring* first, std::wstring* last) NEX {
-	radix_string(first, last, 0);
-}
-
-//
-// Utility function for wchar_t* values
-//
-// Preconditions:
-//  1. The range [first, last) will have less than INT_MAX elements
-//
-inline void radix_string(wchar_t** first, wchar_t** last, int round) NEX
-{
-	radix_pass_recurse(first, last, compose_ch<wchar_t*>(ExtractHighByte(),
-		ExtractStringChar<wchar_t*>(round)),
-		[round](wchar_t** first, wchar_t** last)
-		{
-			radix_pass_recurse(first, last, compose_cl<wchar_t*>(ExtractLowByte(),
-				ExtractStringChar<wchar_t*>(round)),
-				[round](wchar_t** first, wchar_t** last)
-				{
-					radix_string(first, last, round+1);
-				});
-		});
+	radix_wstring(first, last, 0);
 }
 
 //
@@ -280,7 +246,7 @@ inline void radix_string(wchar_t** first, wchar_t** last, int round) NEX
 //  1. The range [first, last) will have less than INT_MAX elements
 //
 inline void radix_sort(wchar_t** first, wchar_t** last) NEX {
-	radix_string(first, last, 0);
+	radix_wstring(first, last, 0);
 }
 
 

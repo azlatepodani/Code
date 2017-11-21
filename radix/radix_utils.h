@@ -19,7 +19,7 @@
 namespace azp {
 
 //with VC it seems that adding noexcept slows things down a little
-#define NEX  /*noexcept*/
+#define NEX  noexcept
 #define CST_NEX const NEX 
 
 

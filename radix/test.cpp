@@ -192,19 +192,19 @@ void main() {
 	}{//*/
 	std::vector<std::string> vec5;
 	gen_random_string_array(50000, 2, 10240, vec5, g);
-	benchmark("v string", vec5, g, [](std::string* f, std::string* l){radix_string(f,l, 0);});
+	benchmark("v string", vec5, g, [](std::string* f, std::string* l){radix_sort(f,l);});
 	}{
 	std::vector<char *> vec9;
 	gen_random_string_array(50000, 2, 10240, vec9, g);
-	benchmark("v char*", vec9, g, [](char** f, char** l){radix_string(f,l, 0);});
+	benchmark("v char*", vec9, g, [](char** f, char** l){radix_sort(f,l);});
 	}{
 	std::vector<std::wstring> vec6;
 	gen_random_string_array(50000, 2, 10240, vec6, g);
-	benchmark("v wstring", vec6, g, [](std::wstring* f, std::wstring* l){radix_string(f,l, 0);});
+	benchmark("v wstring", vec6, g, [](std::wstring* f, std::wstring* l){radix_sort(f,l);});
 	}{
 	std::vector<wchar_t *> vec10;
 	gen_random_string_array(50000, 2, 10240, vec10, g);
-	benchmark("v wchar_t*", vec10, g, [](wchar_t** f, wchar_t** l){radix_string(f,l, 0);});
+	benchmark("v wchar_t*", vec10, g, [](wchar_t** f, wchar_t** l){radix_sort(f,l);});
 	}
 	/*benchmark("s uint8", vec2, g, [](uint8_t* f, uint8_t* l){std::sort(f,l);});
 	benchmark("s int8", vec2, g, [](int8_t* f, int8_t* l){std::sort(f,l);});
