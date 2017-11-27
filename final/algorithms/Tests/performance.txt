@@ -1,0 +1,77 @@
+AZP Heavy Hitters                          Space saving                                ratio
+                                           
+uniform distribution                       uniform distribution
+HT 5   1500000  time=8314us                HT 5   1500000  time=58948us                 7,09
+HT 10  1500000  time=12709us               HT 10  1500000  time=74372us                 5,85
+HT 20  1500000  time=21389us               HT 20  1500000  time=88200us                 4,12
+HT 40  1500000  time=38227us               HT 40  1500000  time=103141us                2,70
+HT 80  1500000  time=70766us               HT 80  1500000  time=113853us                1,61
+HT 160 1500000  time=136693us              HT 160 1500000  time=128580us                0,94
+                                                                                        
+exponential distribution                   exponential distribution                     
+HT 5   1500000  time=8343us                HT 5   1500000  time=58619us                 7,03
+HT 10  1500000  time=12701us               HT 10  1500000  time=74824us                 5,89
+HT 20  1500000  time=21428us               HT 20  1500000  time=88492us                 4,13
+HT 40  1500000  time=38771us               HT 40  1500000  time=103214us                2,66
+HT 80  1500000  time=70696us               HT 80  1500000  time=114021us                1,61
+HT 160 1500000  time=136077us              HT 160 1500000  time=129348us                0,95
+                                                                                        
+normal distribution                        normal distribution                          
+HT 5   1500000  time=8340us                HT 5   1500000  time=58660us                 7,03
+HT 10  1500000  time=12809us               HT 10  1500000  time=74512us                 5,82
+HT 20  1500000  time=21441us               HT 20  1500000  time=88657us                 4,13
+HT 40  1500000  time=38448us               HT 40  1500000  time=102737us                2,67
+HT 80  1500000  time=71107us               HT 80  1500000  time=114178us                1,61
+HT 160 1500000  time=136593us              HT 160 1500000  time=129078us                0,94
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -156,8 +156,9 @@ std::array<RandomIt, K> top_k_candidates(RandomIt first, RandomIt last, int thre
 	
 	value.fill(last);
 	
+	int i = 0;
 	while (first != last) {
-		for (int i = 0; ;) {
+		for (int saved=i; ;) {
 			bool positive_count = count[i] > base;
 			
 			if (positive_count && *(value[i]) == *first) {
@@ -174,6 +175,8 @@ std::array<RandomIt, K> top_k_candidates(RandomIt first, RandomIt last, int thre
 				++i;
 				if (i == K) {
 					i = 0;	// wrap around
+				}
+				if (i == saved) {
 					base++;	// the table is full -> start replacing elements
 				}
 			}
