@@ -72,6 +72,97 @@ std::array<RandomIt, K> heavy_hitters(RandomIt first, RandomIt last)
 	return detail::top_k_candidates<K>(first, last, (last - first) / K);
 }
 
+template <typename RandomIt>
+using value_type = typename std::iterator_traits<RandomIt>::value_type;
+
+//
+// Prepares the 'values' array for a call to reservoir_sampling()
+// Returns: 'first' + K.
+//
+// Preconditions: *(first+K-1) is within the range
+//
+template <size_t K, typename RandomIt>
+RandomIt reservoir_sampling_start(RandomIt first, std::array<value_type<RandomIt>, K>& values)
+{
+	for (size_t i=0; i<K; ++i) {
+		values[i] = *first++;
+	}
+	
+	return first;
+}
+
+//
+// Selects random k distinct elements from a stream of data with k/n individual probability
+// The function updates the previous selection and can be used to process the data in chunks
+// Runtime is O(N) and uses O(K) space
+// Returns: N + last - first
+//
+// Preconditions:
+// 'values' should have been initialized by reservoir_sampling_start()
+// RNG is a uniform random bit generator (UniformRandomBitGenerator)
+// N is the number of elements already processed from the stream. 
+// 'first' should point to the element that logically follows the first N in the stream
+//
+template <size_t K, typename RandomIt, typename RNG>
+int reservoir_sampling(RandomIt first, RandomIt last, std::array<value_type<RandomIt>, K>& values, int N, RNG& g)
+{
+	std::array<const value_type<RandomIt>*, K> selection;
+	int currentN = N;
+	std::uniform_int_distribution<size_t> uni;
+	
+	selection.fill(nullptr);
+	
+	for (; first != last; ++first) {
+		auto pos = uni(g, {0, currentN++});
+		if (pos < K) {
+			selection[pos] = &(*first);
+		}
+	}
+
+	// copy the individual values
+	for (size_t i=0; i<K; ++i) {
+		if (selection[i]) values[i] = *selection[i]; 
+	}
+
+	return currentN;
+}
+
+//
+// Selects random k distinct elements from an array of data with k/n individual probability
+// If the range has less than K elements, the result it undefined
+//
+template <size_t K, typename RandomIt>
+std::array<value_type<RandomIt>, K> sample_k_elements(RandomIt first, RandomIt last)
+{
+	std::array<size_t, K> selection;
+	
+	for (size_t i=0; i<K; ++i) {
+		selection[i] = i;
+	}
+	
+	LARGE_INTEGER ln;
+	QueryPerformanceCounter(&ln);
+	std::mt19937 g(ln.QuadPart);
+	
+	std::uniform_int_distribution<size_t> uni;
+	size_t N = last - first;
+
+	for (size_t i=K; i < N; ++i) {
+		auto pos = uni(g, {0, i});
+		if (pos < K) {
+			selection[pos] = i;
+		}
+	}
+	
+	using T = typename std::iterator_traits<RandomIt>::value_type;
+	std::array<T, K> values;
+	
+	for (size_t i=0; i<K; ++i) {
+		values[i] = first[selection[i]]; 
+	}
+	
+	return values;
+}
 
 
 
@@ -158,7 +249,7 @@ std::array<RandomIt, K> top_k_candidates(RandomIt first, RandomIt last, int thre
 	
 	int i = 0;
 	while (first != last) {
-		for (int saved=i; ;) {
+		for (int saved=i; ;) {	// not starting at i=0 is a 30% speed improvement.
 			bool positive_count = count[i] > base;
 			
 			if (positive_count && *(value[i]) == *first) {
