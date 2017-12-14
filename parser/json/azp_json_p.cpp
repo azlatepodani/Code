@@ -1,29 +1,22 @@
-#include <stdlib.h>
-#include <locale.h>
-#include "azp_json.h"
 
 
 
-parser_t::parser_t() {
-	parsed = nullptr;
-	current_type = Undefined;
-	context = nullptr;
-	callback = [](void*, enum ParserTypes, value_t&) { return true; };
-	recursion = 0;
-	max_recursion = 16;
-}
-
+struct parser_t {
+	char * parsed;
+};
 
 
 static char * skip_wspace(char * first, char * last);
-static bool parseJsonObject(parser_base_t& p, char * first, char * last);
-static bool parseJsonArray(parser_base_t& p, char * first, char * last);
-static bool parseJsonScalarV(parser_base_t& p, char * first, char * last);
+static bool parseJsonObject(parser_t& p, char * first, char * last);
+static bool parseJsonArray(parser_t& p, char * first, char * last);
+static bool parseJsonScalarV(parser_t& p, char * first, char * last);
 
 
-static bool parseJson(parser_base_t& p, char * first, char * last) {
+bool parseJson(parser_t& p, char * first, char * last) {
 	first = skip_wspace(first, last);
 	if (first == last) {
+		/*p.parsed = first;
+		return true;*/
 		return false;
 	}
 	
@@ -32,16 +25,18 @@ static bool parseJson(parser_base_t& p, char * first, char * last) {
 	return parseJsonScalarV(p, first, last);
 }
 
-bool parseJson(parser_t& p, char * first, char * last) {
-	return parseJson(static_cast<parser_base_t&>(p), first, last);
-}
+
+
+
+
+
 
 
 
 
 static char * skip_wspace(char * first, char * last) {
 	auto n = last - first;
-    if (n && *first > ' ') return first;	// likely
+    if (n && *first > ' ') return first;	// likelly
 	for (; n; --n) {
 		if ((*first == ' ') | (*first == '\n') | (*first == '\r') | (*first == '\t')) ++first;
 		else return first;
@@ -49,9 +44,26 @@ static char * skip_wspace(char * first, char * last) {
 	return first;
 }
 
+/*
+static char * skip_wspace2(char * first, char * last) {
+    if (first == last || *first > ' ') return first;
+    auto ch = *(last-1);
+    *(last-1) = 0;  // marker
+	for (;;) {
+		if ((*first == ' ') | (*first == '\n') | (*first == '\r') | (*first == '\t')) ++first;
+		else break;
+	}
+    *(last-1) = ch;
+    if (first != last-1) return first;
+
+	return ((*first == ' ') | (*first == '\n') | (*first == '\r') | (*first == '\t'))
+        ? first + 1 : first;
+}
+*/
+
 
 // assumes that '\u' was already parsed
-static bool unescapeUnicodeChar(parser_base_t& p, char * first, char * last, char ** pCur) {
+static bool unescapeUnicodeChar(parser_t& p, char * first, char * last, char ** pCur) {
 	if (last-first < 4) return false;
 	
 	unsigned u32 = 0;
@@ -147,17 +159,8 @@ static bool validUtf8(char * first, char * last) {
 	return true;
 }
 
-
-bool call_string_callback(parser_base_t& p, char* start, char * end) {
-	value_t val;
-	val.string = start;
-	val.length = end-start;
-	return p.callback(p.context, p.current_type, val);
-}
-
-
 // assumes that '"' was already parsed
-static bool parseString(parser_base_t& p, char * first, char * last) {
+static bool parseString(parser_t& p, char * first, char * last) {
 	auto n = last-first;
 	auto start = first;
 	auto cur = first;
@@ -166,7 +169,7 @@ static bool parseString(parser_base_t& p, char * first, char * last) {
 		if (*first == '"') {
 			if (!validUtf8(start, cur)) return false;
 			p.parsed = first+1;
-			return call_string_callback(p, start, cur);
+			return true;
 		}
 		
 		if (*first != '\\') {
@@ -218,7 +221,7 @@ static bool parseString(parser_base_t& p, char * first, char * last) {
 }
 
 // assumes first != last
-static bool parseNumber(parser_base_t& p, char * first, char * last) {
+static bool parseNumber(parser_t& p, char * first, char * last) {
 	char buf[64];
 	char * cur = buf;
 	auto savedCh = *(last-1);
@@ -240,6 +243,7 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 		haveDigit = true;
 	}
 	
+	
 	// optional '.<digits>'
 	if (*first == '.') {
 		haveDot = true;
@@ -256,8 +260,8 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 	if ((*first|0x20) == 'e') {
 		haveExp = true;
 		
-		//if (!haveDot) *cur++ = '.';				// sscanf needs a '.' before 'e'
-		//if (!haveDotDigit) *cur++ = '0';		// sscanf needs a digit between '.' and 'e'
+		if (!haveDot) *cur++ = '.';				// sscanf needs a '.' before 'e'
+		if (!haveDotDigit) *cur++ = '0';		// sscanf needs a digit between '.' and 'e'
 		*cur++ = *first++;
 
 		// optional +/- signs
@@ -285,29 +289,20 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 	if (haveExp && !haveExpDigit) return false;
 	if (!haveDigit) return false;
 	
-	bool result;
 	if (haveDot || haveExp) {
-		// TODO: error checking
-		auto old = setlocale(LC_NUMERIC, "C");
-		value_t val;
-		val.number = atof(buf);
-		setlocale(LC_NUMERIC, old);
-
-		result = p.callback(p.context, Number_float, val);
+		// sscanf(buf, "%lE", &dblNum);
 	}
 	else {
-		value_t val;
-		val.integer = atoll(buf);
-		result = p.callback(p.context, Number_int, val);
+		// sscanf(buf, "%lld", &llongNum);
 	}
 	
 	p.parsed = first;
-	return result;
+	return true;
 }
 
 
 // assumes 't' was already parsed
-static bool parseTrue(parser_base_t& p, char * first, char * last) {
+static bool parseTrue(parser_t& p, char * first, char * last) {
 	if (last-first < 3) return false;
 	
 	unsigned v = *first;
@@ -316,13 +311,12 @@ static bool parseTrue(parser_base_t& p, char * first, char * last) {
 	
 	if (v != '\0eur') return false;
 	p.parsed = first + 3;
-	value_t val;
-	return p.callback(p.context, Bool_true, val);
+	return true;
 }
 
 
 // assumes 'f' was already parsed
-static bool parseFalse(parser_base_t& p, char * first, char * last) {
+static bool parseFalse(parser_t& p, char * first, char * last) {
 	if (last-first < 3) return false;
 	
 	unsigned v = *first;
@@ -332,12 +326,11 @@ static bool parseFalse(parser_base_t& p, char * first, char * last) {
 	
 	if (v != 'esla') return false;
 	p.parsed = first + 4;
-	value_t val;
-	return p.callback(p.context, Bool_false, val);
+	return true;
 }
 
 // assumes 'n' was already parsed
-static bool parseNull(parser_base_t& p, char * first, char * last) {
+static bool parseNull(parser_t& p, char * first, char * last) {
 	if (last-first < 3) return false;
 	
 	unsigned v = *first;
@@ -346,17 +339,13 @@ static bool parseNull(parser_base_t& p, char * first, char * last) {
 	
 	if (v != '\0llu') return false;
 	p.parsed = first + 3;
-	value_t val;
-	return p.callback(p.context, Null_val, val);
+	return true;
 }
 
 
-static bool parseJsonScalarV(parser_base_t& p, char * first, char * last) {
-	if (*first == '"') {
-		p.current_type = String_val;
-		return parseString(p, first+1, last);
-	}
 
+static bool parseJsonScalarV(parser_t& p, char * first, char * last) {
+	if (*first == '"') return parseString(p, first+1, last);
 	if (*first >= '0' && *first <= '9' || *first == '-' || *first == '+') return parseNumber(p, first, last);
 	if (*first == 't') return parseTrue(p, first+1, last);
 	if (*first == 'f') return parseFalse(p, first+1, last);
@@ -365,23 +354,19 @@ static bool parseJsonScalarV(parser_base_t& p, char * first, char * last) {
 }
 
 // assumes that '{' was already parsed
-static bool parseJsonObject(parser_base_t& p, char * first, char * last) {
-	value_t val;
-	if (!p.callback(p.context, Object_begin, val)) return false;
-
+static bool parseJsonObject(parser_t& p, char * first, char * last) {
 	first = skip_wspace(first, last);
 	if (first == last) return false;
 	
 	if (*first == '}') {
 		p.parsed = first + 1;
-		return p.callback(p.context, Object_end, val);
+		return true;
 	}
 	
 	for (;;) {
 		// name
 		if (*first != '"') return false;
 		
-		p.current_type = Object_key;
 		if (!parseString(p, first+1, last)) return false;
 		
 		first = skip_wspace(p.parsed, last);
@@ -404,23 +389,20 @@ static bool parseJsonObject(parser_base_t& p, char * first, char * last) {
 	
 	if (*first == '}') {
 		p.parsed = first + 1;
-		return p.callback(p.context, Object_end, val);
+		return true;
 	}
 	
 	return false;
 }
 
 // assumes that '[' was already parsed
-static bool parseJsonArray(parser_base_t& p, char * first, char * last) {
-	value_t val;
-	if (!p.callback(p.context, Array_begin, val)) return false;
-
+static bool parseJsonArray(parser_t& p, char * first, char * last) {
 	first = skip_wspace(first, last);
 	if (first == last) return false;
 	
 	if (*first == ']') {
 		p.parsed = first + 1;
-		return p.callback(p.context, Array_end, val);
+		return true;
 	}
 	
 	for (;;) {
@@ -439,7 +421,7 @@ static bool parseJsonArray(parser_base_t& p, char * first, char * last) {
 	
 	if (*first == ']') {
 		p.parsed = first + 1;
-		return p.callback(p.context, Array_end, val);
+		return true;
 	}
 	
 	return false;
@@ -461,31 +443,31 @@ void main() {
 	char g[] = "[true, \"lala\",\r  \t[{}]]";
 	
 	{
-	parser_base_t p = {0};
+	parser_t p = {0};
 	parseJson(p, a, a+sizeof(a)-1);
 	}
 	{
-	parser_base_t p = {0};
+	parser_t p = {0};
 	parseJson(p, b, b+sizeof(b)-1);
 	}
 	{
-	parser_base_t p = {0};
+	parser_t p = {0};
 	parseJson(p, c, c+sizeof(c)-1);
 	}
 	{
-	parser_base_t p = {0};
+	parser_t p = {0};
 	parseJson(p, d, d+sizeof(d)-1);
 	}
 	{
-	parser_base_t p = {0};
+	parser_t p = {0};
 	parseJson(p, e, e+sizeof(e)-1);
 	}
 	{
-	parser_base_t p = {0};
+	parser_t p = {0};
 	parseJson(p, f, f+sizeof(f)-1);
 	}
 	{
-	parser_base_t p = {0};
+	parser_t p = {0};
 	parseJson(p, g, g+sizeof(g)-1);
 	}
 }
