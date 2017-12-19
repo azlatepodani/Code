@@ -6,13 +6,21 @@
 
 parser_t::parser_t() {
 	parsed = nullptr;
-	current_type = Undefined;
 	context = nullptr;
-	callback = [](void*, enum ParserTypes, value_t&) { return true; };
+	callback = [](void*, ParserTypes, const value_t&) { return true; };
 	recursion = 0;
 	max_recursion = 16;
+	error = No_error;
+	err_position = 0;
 }
 
+
+static bool parse_error(parser_base_t& p, ParserErrors err, const char * curPtr)
+{
+	p.error = err;
+	p.err_position = curPtr - p._first;
+	return false;
+}
 
 
 static char * skip_wspace(char * first, char * last);
@@ -21,16 +29,28 @@ static bool parseJsonArray(parser_base_t& p, char * first, char * last);
 static bool parseJsonScalarV(parser_base_t& p, char * first, char * last);
 
 
+struct dec_on_exit {
+	dec_on_exit(int& val) : val(val) {}
+	~dec_on_exit() { --val; }
+	int& val;
+};
+
+
 static bool parseJson(parser_base_t& p, char * first, char * last) {
+	if (++p.recursion >= p.max_recursion) return parse_error(p, Max_recursion, first);
+	
+	dec_on_exit de(p.recursion);
+	
 	first = skip_wspace(first, last);
 	if (first == last) {
-		return false;
+		return parse_error(p, No_value, first);
 	}
 	
 	if (*first == '{') return parseJsonObject(p, first+1, last);
 	if (*first == '[') return parseJsonArray(p, first+1, last);
 	return parseJsonScalarV(p, first, last);
 }
+
 
 bool parseJson(parser_t& p, char * first, char * last) {
 	return parseJson(static_cast<parser_base_t&>(p), first, last);
@@ -52,7 +72,7 @@ static char * skip_wspace(char * first, char * last) {
 
 // assumes that '\u' was already parsed
 static bool unescapeUnicodeChar(parser_base_t& p, char * first, char * last, char ** pCur) {
-	if (last-first < 4) return false;
+	if (last-first < 4) return parse_error(p, Invalid_escape, first);
 	
 	unsigned u32 = 0;
 	
@@ -64,7 +84,7 @@ static bool unescapeUnicodeChar(parser_base_t& p, char * first, char * last, cha
 	else if ((*first|0x20) >= 'a' && (*first|0x20) <='z') {	\
 		u32 |= (*first|0x20) - 'a' + 10;		\
 	}											\
-	else return false
+	else return parse_error(p, Invalid_escape, first)
 	//
 	
 	load_hex();
@@ -83,12 +103,14 @@ static bool unescapeUnicodeChar(parser_base_t& p, char * first, char * last, cha
 	first++;
 
 	if (u32 >= 0xD800 && u32 < 0xE000) {
-		if ((u32 >> 10) != 0x36) return false; // incorrect bit pattern
+		if ((u32 >> 10) != 0x36) {	// incorrect bit pattern
+			return parse_error(p, Invalid_escape, first-4);
+		}
 		
 		// surrogate pair
-		if (last-first < 6) return false;
+		if (last-first < 6) return parse_error(p, Invalid_escape, first);
 		
-		if (*first != '\\' || first[1] != 'u') return false;
+		if (*first != '\\' || first[1] != 'u') return parse_error(p, Invalid_escape, first-6);
 		first += 2;
 		
 		auto saved = u32;
@@ -109,10 +131,10 @@ static bool unescapeUnicodeChar(parser_base_t& p, char * first, char * last, cha
 		load_hex();
 		first++;
 
-		if (u32 >= 0xD800 && u32 < 0xE000 && (u32 >> 10) == 0x37) { // second word
-			u32 = (u32 & 0x3FF) + ((saved & 0x3FF) << 10) + 0x10000;	// convert to unicode code point
+		if (u32 >= 0xD800 && u32 < 0xE000 && (u32 >> 10) == 0x37) {  // second word
+			u32 = (u32 & 0x3FF) + ((saved & 0x3FF) << 10) + 0x10000; // convert to code point
 		}
-		else return false;
+		else return parse_error(p, Invalid_escape, first-4);
 	}
 	
 	// write as UTF-8
@@ -143,30 +165,32 @@ static bool unescapeUnicodeChar(parser_base_t& p, char * first, char * last, cha
 }
 
 
-static bool validUtf8(char * first, char * last) {
-	return true;
-}
+#define wrap_user_callback(RT, VAL, ERR_HINT) 					\
+					(p.callback(p.context, (RT), (VAL)) ? true	\
+					: parse_error(p, User_requested, (ERR_HINT)))
 
 
-bool call_string_callback(parser_base_t& p, char* start, char * end) {
+static bool call_string_callback(parser_base_t& p, char* start, char * end,
+								 ParserTypes report_type)
+{
 	value_t val;
 	val.string = start;
 	val.length = end-start;
-	return p.callback(p.context, p.current_type, val);
+	return wrap_user_callback(report_type, val, start);
 }
 
 
 // assumes that '"' was already parsed
-static bool parseString(parser_base_t& p, char * first, char * last) {
+static bool parseString(parser_base_t& p, char * first, char * last, ParserTypes report_type)
+{
 	auto n = last-first;
 	auto start = first;
 	auto cur = first;
 	
 	for (;n;--n) {
 		if (*first == '"') {
-			if (!validUtf8(start, cur)) return false;
 			p.parsed = first+1;
-			return call_string_callback(p, start, cur);
+			return call_string_callback(p, start, cur, report_type);
 		}
 		
 		if (*first != '\\') {
@@ -176,7 +200,7 @@ static bool parseString(parser_base_t& p, char * first, char * last) {
 
 		first++;
 		n--;
-		if (!n) return false;
+		if (!n) return parse_error(p, No_string_end, start-1);
 		
 		if (*first != 'u') {
 			if ((*first == '"') | (*first == '\\') | (*first == '/')) {
@@ -198,7 +222,7 @@ static bool parseString(parser_base_t& p, char * first, char * last) {
 				*cur = '\f';
 			}
 			else {
-				return false;
+				return parse_error(p, Invalid_escape, first);
 			}
 			
 			first++;
@@ -214,13 +238,15 @@ static bool parseString(parser_base_t& p, char * first, char * last) {
 		}
 	}
 	
-	return false;
+	return parse_error(p, No_string_end, start-1);
 }
+
 
 // assumes first != last
 static bool parseNumber(parser_base_t& p, char * first, char * last) {
 	char buf[64];
 	char * cur = buf;
+	char * savedFirst = first;
 	auto savedCh = *(last-1);
 	*(last-1) = 0; // sentinel
 	
@@ -279,26 +305,35 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 	}
 	
 	*cur = 0;
-	*(last-1) = savedCh;
+	*(last-1) = savedCh;	// replace the sentinel with the saved character
 	
-	if (haveDot && !haveExp && !haveDotDigit) return false;
-	if (haveExp && !haveExpDigit) return false;
-	if (!haveDigit) return false;
+	if (haveDot && !haveExp && !haveDotDigit ||
+		haveExp && !haveExpDigit ||
+		!haveDigit)
+	{
+		return parse_error(p, Invalid_number, savedFirst);
+	}
 	
 	bool result;
-	if (haveDot || haveExp) {
-		// TODO: error checking
+	if (haveDot | haveExp) {
 		auto old = setlocale(LC_NUMERIC, "C");
+		if (!old) {
+			return parse_error(p, Runtime_error, savedFirst);
+		}
+		
 		value_t val;
 		val.number = atof(buf);
-		setlocale(LC_NUMERIC, old);
+		
+		if (!setlocale(LC_NUMERIC, old)) {
+			return parse_error(p, Runtime_error, savedFirst);
+		}
 
-		result = p.callback(p.context, Number_float, val);
+		result = wrap_user_callback(Number_float, val, first);
 	}
 	else {
 		value_t val;
 		val.integer = atoll(buf);
-		result = p.callback(p.context, Number_int, val);
+		result = wrap_user_callback(Number_float, val, first);
 	}
 	
 	p.parsed = first;
@@ -308,186 +343,147 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 
 // assumes 't' was already parsed
 static bool parseTrue(parser_base_t& p, char * first, char * last) {
-	if (last-first < 3) return false;
+	if (last-first < 3) return parse_error(p, Invalid_token, first-1);
 	
 	unsigned v = *first;
 	v |= unsigned(first[1]) << 8;
 	v |= unsigned(first[2]) << 16;
 	
-	if (v != '\0eur') return false;
+	if (v != '\0eur') return parse_error(p, Invalid_token, first-1);
+	
 	p.parsed = first + 3;
 	value_t val;
-	return p.callback(p.context, Bool_true, val);
+	return wrap_user_callback(Bool_true, val, p.parsed);
 }
 
 
 // assumes 'f' was already parsed
 static bool parseFalse(parser_base_t& p, char * first, char * last) {
-	if (last-first < 3) return false;
+	if (last-first < 4) return parse_error(p, Invalid_token, first-1);
 	
 	unsigned v = *first;
 	v |= unsigned(first[1]) << 8;
 	v |= unsigned(first[2]) << 16;
 	v |= unsigned(first[3]) << 24;
 	
-	if (v != 'esla') return false;
+	if (v != 'esla') return parse_error(p, Invalid_token, first-1);
+	
 	p.parsed = first + 4;
 	value_t val;
-	return p.callback(p.context, Bool_false, val);
+	return wrap_user_callback(Bool_false, val, p.parsed);
 }
+
 
 // assumes 'n' was already parsed
 static bool parseNull(parser_base_t& p, char * first, char * last) {
-	if (last-first < 3) return false;
+	if (last-first < 3) return parse_error(p, Invalid_token, first-1);
 	
 	unsigned v = *first;
 	v |= unsigned(first[1]) << 8;
 	v |= unsigned(first[2]) << 16;
 	
-	if (v != '\0llu') return false;
+	if (v != '\0llu') return parse_error(p, Invalid_token, first-1);
+	
 	p.parsed = first + 3;
 	value_t val;
-	return p.callback(p.context, Null_val, val);
+	return wrap_user_callback(Null_val, val, p.parsed);
 }
 
 
 static bool parseJsonScalarV(parser_base_t& p, char * first, char * last) {
 	if (*first == '"') {
-		p.current_type = String_val;
-		return parseString(p, first+1, last);
+		return parseString(p, first+1, last, String_val);
 	}
 
-	if (*first >= '0' && *first <= '9' || *first == '-' || *first == '+') return parseNumber(p, first, last);
+	if (*first >= '0' && *first <= '9' || *first == '-' || *first == '+') {
+		return parseNumber(p, first, last);
+	}
+	
 	if (*first == 't') return parseTrue(p, first+1, last);
 	if (*first == 'f') return parseFalse(p, first+1, last);
 	if (*first == 'n') return parseNull(p, first+1, last);
-	return false;
+	
+	return parse_error(p, No_value, first);
 }
+
 
 // assumes that '{' was already parsed
 static bool parseJsonObject(parser_base_t& p, char * first, char * last) {
 	value_t val;
-	if (!p.callback(p.context, Object_begin, val)) return false;
+	if (!wrap_user_callback(Object_begin, val, first)) return false;
 
 	first = skip_wspace(first, last);
-	if (first == last) return false;
+	if (first == last) return parse_error(p, Unbalanced_collection, first);
 	
 	if (*first == '}') {
 		p.parsed = first + 1;
-		return p.callback(p.context, Object_end, val);
+		return wrap_user_callback(Object_end, val, p.parsed);
 	}
 	
 	for (;;) {
 		// name
-		if (*first != '"') return false;
+		if (*first != '"') return parse_error(p, Expected_key, first);
 		
-		p.current_type = Object_key;
-		if (!parseString(p, first+1, last)) return false;
+		if (!parseString(p, first+1, last, Object_key)) return parse_error(p, No_value, first);
 		
 		first = skip_wspace(p.parsed, last);
-		if (first == last) return false;
-		
-		if (*first != ':') return false;
+		if (first == last || *first != ':') return parse_error(p, Expected_colon, first);
 		
 		// value
 		if (!parseJson(p, first+1, last)) return false;
 		
 		first = skip_wspace(p.parsed, last);
-		if (first == last) return false;
+		if (first == last) return parse_error(p, Unbalanced_collection, first);
 
 		if (*first == ',') {
 			first = skip_wspace(first+1, last);
-			if (first == last) return false;
+			if (first == last) return parse_error(p, Expected_key, first);
 		}
 		else break;
 	}
 	
 	if (*first == '}') {
 		p.parsed = first + 1;
-		return p.callback(p.context, Object_end, val);
+		return wrap_user_callback(Object_end, val, p.parsed);
 	}
 	
-	return false;
+	return parse_error(p, Unbalanced_collection, first);
 }
+
 
 // assumes that '[' was already parsed
 static bool parseJsonArray(parser_base_t& p, char * first, char * last) {
 	value_t val;
-	if (!p.callback(p.context, Array_begin, val)) return false;
+	if (!wrap_user_callback(Array_begin, val, first)) return false;
 
 	first = skip_wspace(first, last);
-	if (first == last) return false;
+	if (first == last) return parse_error(p, Unbalanced_collection, first);
 	
 	if (*first == ']') {
 		p.parsed = first + 1;
-		return p.callback(p.context, Array_end, val);
+		return wrap_user_callback(Array_end, val, p.parsed);
 	}
 	
 	for (;;) {
 		// value
 		if (!parseJson(p, first, last)) return false;
-		
+		 
 		first = skip_wspace(p.parsed, last);
-		if (first == last) return false;
+		if (first == last) return parse_error(p, Unbalanced_collection, first);
 
 		if (*first == ',') {
 			first = skip_wspace(first+1, last);
-			if (first == last) return false;
+			if (first == last) return parse_error(p, No_value, first);
 		}
 		else break;
 	}
 	
 	if (*first == ']') {
 		p.parsed = first + 1;
-		return p.callback(p.context, Array_end, val);
+		return wrap_user_callback(Array_end, val, p.parsed);
 	}
 	
-	return false;
+	return parse_error(p, Unbalanced_collection, first);
 }
 
 
-
-
-
-/*
-
-void main() {
-	char a[] = "\"string\\u0020\\udBC0\\udC00\\\\\"";
-	char b[] = "213.e1";
-	char c[] = "123";
-	char d[] = "{\"name\":false}";
-	char e[] = "{\"name2\":true, \"name\n3\":  \t{}}";
-	char f[] = "[null]";
-	char g[] = "[true, \"lala\",\r  \t[{}]]";
-	
-	{
-	parser_base_t p = {0};
-	parseJson(p, a, a+sizeof(a)-1);
-	}
-	{
-	parser_base_t p = {0};
-	parseJson(p, b, b+sizeof(b)-1);
-	}
-	{
-	parser_base_t p = {0};
-	parseJson(p, c, c+sizeof(c)-1);
-	}
-	{
-	parser_base_t p = {0};
-	parseJson(p, d, d+sizeof(d)-1);
-	}
-	{
-	parser_base_t p = {0};
-	parseJson(p, e, e+sizeof(e)-1);
-	}
-	{
-	parser_base_t p = {0};
-	parseJson(p, f, f+sizeof(f)-1);
-	}
-	{
-	parser_base_t p = {0};
-	parseJson(p, g, g+sizeof(g)-1);
-	}
-}
-
-*/

@@ -18,6 +18,22 @@ enum ParserTypes {
 };
 
 
+enum ParserErrors {
+	No_error,
+	Max_recursion,
+	No_value,
+	Invalid_escape,
+	User_requested,
+	No_string_end,
+	Invalid_number,
+	Runtime_error,
+	Invalid_token,
+	Unbalanced_collection,
+	Expected_key,
+	Expected_colon,
+};
+
+
 union value_t {
 	long long integer;
 	double number;
@@ -28,17 +44,19 @@ union value_t {
 };
 
 
-typedef bool (* parser_callback_t)(void * context, enum ParserTypes type, value_t& val);
+typedef bool (* parser_callback_t)(void * context, ParserTypes type, const value_t& val);
 
 
 
 struct parser_base_t {
 	char * parsed;
-	enum ParserTypes current_type;
 	void * context;
 	parser_callback_t callback;
 	int recursion;
 	int max_recursion;
+	ParserErrors error;
+	size_t err_position;
+	const char * _first;
 };
 
 
@@ -56,11 +74,25 @@ public:
 	void set_max_recursion(int maxr) {
 		max_recursion = maxr;
 	}
+	
+	ParserErrors get_error() { return error; }
+	
+	size_t get_err_position() { return err_position; }
 
 	friend bool parseJson(parser_t& p, char * first, char * last);
 };
 
 
+//
+// Parses a string of chars according to the ECMA-404 The JSON Data Interchange Standard
+//
+// Preconditions: the string is UTF-8 encoded.
+//
+// Returns true if the string is conform, the maximum recursion depth wasn't reached
+// the parser's callback didn't return 'false' in any of the invocations.
+//
+// [first, last) is a semi-open interval
+//
 bool parseJson(parser_t& p, char * first, char * last);
 
 
