@@ -12,11 +12,11 @@
 #include "azp_json.h"
 
 
-
+using namespace azp;
 
 parser_t parseJson(const std::string& odoc) {
 	parser_t p;
-	std::string doc = odoc;
+	//std::string doc = odoc;
 	if (!parseJson(p, &doc[0], &doc[0]+doc.size())) {
 		std::cout << "parse failure\n";
 	}

@@ -2,16 +2,17 @@
 #include <locale.h>
 #include "azp_json.h"
 
-
+namespace azp {
 
 parser_t::parser_t() {
 	parsed = nullptr;
 	context = nullptr;
-	callback = [](void*, ParserTypes, value_t&) { return true; };
+	callback = [](void*, ParserTypes, const value_t&) { return true; };
 	recursion = 0;
 	max_recursion = 16;
 	error = No_error;
 	err_position = 0;
+	_first = nullptr;
 }
 
 // Internal type.
@@ -52,12 +53,27 @@ static void parseJson(parser_base_t& p, char * first, char * last) {
 }
 
 bool parseJson(parser_t& p, char * first, char * last) {
+	char* old = nullptr;
+	
 	try {
 		p._first = first;
+		
+		old = setlocale(LC_NUMERIC, "C");
+		if (!old) {
+			throw parse_exception(p, Runtime_error, first);
+		}
+		
 		parseJson(static_cast<parser_base_t&>(p), first, last);
+		
+		if (!setlocale(LC_NUMERIC, old)) {
+			old = nullptr;
+			throw parse_exception(p, Runtime_error, first);
+		}
+		
 		return true;
 	}
 	catch (parse_exception&) {
+		if (old) setlocale(LC_NUMERIC, old);
 		return false;
 	}
 }
@@ -322,18 +338,8 @@ static void parseNumber(parser_base_t& p, char * first, char * last) {
 	
 	bool result;
 	if (haveDot || haveExp) {
-		auto old = setlocale(LC_NUMERIC, "C");
-		if (!old) {
-			throw parse_exception(p, Runtime_error, savedFirst);
-		}
-		
 		value_t val;
 		val.number = atof(buf);
-		
-		if (!setlocale(LC_NUMERIC, old)) {
-			throw parse_exception(p, Runtime_error, savedFirst);
-		}
-
 		result = p.callback(p.context, Number_float, val);
 	}
 	else {
@@ -351,16 +357,23 @@ static void parseNumber(parser_base_t& p, char * first, char * last) {
 
 // assumes 't' was already parsed
 static void parseTrue(parser_base_t& p, char * first, char * last) {
-	if (last-first < 3) {
-		throw parse_exception(p, Invalid_token, first-1);;
+	unsigned v;
+	
+	if (last-first < 4) {
+		if (last-first < 3) {
+			throw parse_exception(p, Invalid_token, first-1);
+		}
+		
+		v = *first;
+		v |= unsigned(first[1]) << 8;
+		v |= unsigned(first[2]) << 16;
+	}
+	else {
+		v = *(unsigned *)first & 0xFFFFFF;
 	}
 	
-	unsigned v = *first;
-	v |= unsigned(first[1]) << 8;
-	v |= unsigned(first[2]) << 16;
-	
 	if (v != '\0eur') {
-		throw parse_exception(p, Invalid_token, first-1);;
+		throw parse_exception(p, Invalid_token, first-1);
 	}
 	
 	p.parsed = first + 3;
@@ -375,16 +388,13 @@ static void parseTrue(parser_base_t& p, char * first, char * last) {
 // assumes 'f' was already parsed
 static void parseFalse(parser_base_t& p, char * first, char * last) {
 	if (last-first < 4) {
-		throw parse_exception(p, Invalid_token, first-1);;
+		throw parse_exception(p, Invalid_token, first-1);
 	}
 	
-	unsigned v = *first;
-	v |= unsigned(first[1]) << 8;
-	v |= unsigned(first[2]) << 16;
-	v |= unsigned(first[3]) << 24;
+	unsigned v = *(unsigned *)first;
 	
 	if (v != 'esla') {
-		throw parse_exception(p, Invalid_token, first-1);;
+		throw parse_exception(p, Invalid_token, first-1);
 	}
 	
 	p.parsed = first + 4;
@@ -397,16 +407,23 @@ static void parseFalse(parser_base_t& p, char * first, char * last) {
 
 // assumes 'n' was already parsed
 static void parseNull(parser_base_t& p, char * first, char * last) {
-	if (last-first < 3) {
-		throw parse_exception(p, Invalid_token, first-1);;
+	unsigned v;
+	
+	if (last-first < 4) {
+		if (last-first < 3) {
+			throw parse_exception(p, Invalid_token, first-1);
+		}
+		
+		v = *first;
+		v |= unsigned(first[1]) << 8;
+		v |= unsigned(first[2]) << 16;
+	}
+	else {
+		v = *(unsigned *)first & 0xFFFFFF;
 	}
 	
-	unsigned v = *first;
-	v |= unsigned(first[1]) << 8;
-	v |= unsigned(first[2]) << 16;
-	
 	if (v != '\0llu') {
-		throw parse_exception(p, Invalid_token, first-1);;
+		throw parse_exception(p, Invalid_token, first-1);
 	}
 	
 	p.parsed = first + 3;
@@ -551,48 +568,5 @@ static void parseJsonArray(parser_base_t& p, char * first, char * last) {
 }
 
 
+} // namespace azp
 
-
-
-/*
-
-void main() {
-	char a[] = "\"string\\u0020\\udBC0\\udC00\\\\\"";
-	char b[] = "213.e1";
-	char c[] = "123";
-	char d[] = "{\"name\":false}";
-	char e[] = "{\"name2\":true, \"name\n3\":  \t{}}";
-	char f[] = "[null]";
-	char g[] = "[true, \"lala\",\r  \t[{}]]";
-	
-	{
-	parser_base_t p = {0};
-	parseJson(p, a, a+sizeof(a)-1);
-	}
-	{
-	parser_base_t p = {0};
-	parseJson(p, b, b+sizeof(b)-1);
-	}
-	{
-	parser_base_t p = {0};
-	parseJson(p, c, c+sizeof(c)-1);
-	}
-	{
-	parser_base_t p = {0};
-	parseJson(p, d, d+sizeof(d)-1);
-	}
-	{
-	parser_base_t p = {0};
-	parseJson(p, e, e+sizeof(e)-1);
-	}
-	{
-	parser_base_t p = {0};
-	parseJson(p, f, f+sizeof(f)-1);
-	}
-	{
-	parser_base_t p = {0};
-	parseJson(p, g, g+sizeof(g)-1);
-	}
-}
-
-*/

@@ -1,9 +1,13 @@
 #include <stdlib.h>
 #include <locale.h>
 #include "azp_json.h"
+#include <memory>
 
 
-
+namespace azp {
+	
+	
+	
 parser_t::parser_t() {
 	parsed = nullptr;
 	context = nullptr;
@@ -12,6 +16,7 @@ parser_t::parser_t() {
 	max_recursion = 16;
 	error = No_error;
 	err_position = 0;
+	_first = nullptr;
 }
 
 
@@ -53,9 +58,34 @@ static bool parseJson(parser_base_t& p, char * first, char * last) {
 
 
 bool parseJson(parser_t& p, char * first, char * last) {
-	return parseJson(static_cast<parser_base_t&>(p), first, last);
+	p._first = first;
+	
+	auto old = setlocale(LC_NUMERIC, "C");
+	if (!old) {
+		return parse_error(p, Runtime_error, first);
+	}
+	
+	bool result = parseJson(static_cast<parser_base_t&>(p), first, last);
+	
+	if (!setlocale(LC_NUMERIC, old) && result) {	// set the error type only if result == true
+		return parse_error(p, Runtime_error, first);
+	}
+	
+	return result;
 }
 
+
+bool parseJson(parser_t& p, const char * first, const char * last)
+{
+	auto size = last - first;
+	std::unique_ptr<char> buf(new (std::nothrow) char[size]);
+	
+	if (!buf) return parse_error(p, Runtime_error, nullptr);
+	
+	memcpy(buf.get(), first, size);
+	
+	return parseJson(p, buf.get(), buf.get()+size);
+}
 
 
 
@@ -315,19 +345,9 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 	}
 	
 	bool result;
-	if (haveDot | haveExp) {
-		auto old = setlocale(LC_NUMERIC, "C");
-		if (!old) {
-			return parse_error(p, Runtime_error, savedFirst);
-		}
-		
+	if (haveDot | haveExp) {		
 		value_t val;
 		val.number = atof(buf);
-		
-		if (!setlocale(LC_NUMERIC, old)) {
-			return parse_error(p, Runtime_error, savedFirst);
-		}
-
 		result = wrap_user_callback(Number_float, val, first);
 	}
 	else {
@@ -343,11 +363,20 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 
 // assumes 't' was already parsed
 static bool parseTrue(parser_base_t& p, char * first, char * last) {
-	if (last-first < 3) return parse_error(p, Invalid_token, first-1);
+	unsigned v;
 	
-	unsigned v = *first;
-	v |= unsigned(first[1]) << 8;
-	v |= unsigned(first[2]) << 16;
+	if (last-first < 4) {
+		if (last-first < 3) {
+			return parse_error(p, Invalid_token, first-1);
+		}
+		
+		v = *first;
+		v |= unsigned(first[1]) << 8;
+		v |= unsigned(first[2]) << 16;
+	}
+	else {
+		v = *(unsigned *)first & 0xFFFFFF;
+	}
 	
 	if (v != '\0eur') return parse_error(p, Invalid_token, first-1);
 	
@@ -361,10 +390,7 @@ static bool parseTrue(parser_base_t& p, char * first, char * last) {
 static bool parseFalse(parser_base_t& p, char * first, char * last) {
 	if (last-first < 4) return parse_error(p, Invalid_token, first-1);
 	
-	unsigned v = *first;
-	v |= unsigned(first[1]) << 8;
-	v |= unsigned(first[2]) << 16;
-	v |= unsigned(first[3]) << 24;
+	unsigned v = *(unsigned *)first;
 	
 	if (v != 'esla') return parse_error(p, Invalid_token, first-1);
 	
@@ -376,11 +402,20 @@ static bool parseFalse(parser_base_t& p, char * first, char * last) {
 
 // assumes 'n' was already parsed
 static bool parseNull(parser_base_t& p, char * first, char * last) {
-	if (last-first < 3) return parse_error(p, Invalid_token, first-1);
+	unsigned v;
 	
-	unsigned v = *first;
-	v |= unsigned(first[1]) << 8;
-	v |= unsigned(first[2]) << 16;
+	if (last-first < 4) {
+		if (last-first < 3) {
+			return parse_error(p, Invalid_token, first-1);
+		}
+		
+		v = *first;
+		v |= unsigned(first[1]) << 8;
+		v |= unsigned(first[2]) << 16;
+	}
+	else {
+		v = *(unsigned *)first & 0xFFFFFF;
+	}
 	
 	if (v != '\0llu') return parse_error(p, Invalid_token, first-1);
 	
@@ -486,4 +521,6 @@ static bool parseJsonArray(parser_base_t& p, char * first, char * last) {
 	return parse_error(p, Unbalanced_collection, first);
 }
 
+
+}
 
