@@ -7,7 +7,8 @@
 #include <string>
 #include <iostream>
 #include <sstream>
-#define WIN32_LEAN_AND_MEAN
+#include <chrono>
+#include <ratio>
 #include <windows.h>
 #include "azp_json.h"
 
@@ -17,7 +18,7 @@ using namespace azp;
 parser_t parseJson(const std::string& odoc) {
 	parser_t p;
 	//std::string doc = odoc;
-	if (!parseJson(p, &doc[0], &doc[0]+doc.size())) {
+	if (!parseJson(p, &odoc[0], &odoc[0]+odoc.size())) {
 		std::cout << "parse failure\n";
 	}
 	return p;
@@ -50,27 +51,20 @@ std::string loadFile(const wchar_t * path) {
 
 template <typename Fn>
 void benchmark(int size, char * desc, Fn alg)
-{
-	long long time = 0;
-	LARGE_INTEGER li, li2, freq;
-	
-	QueryPerformanceFrequency(&freq);
-	 
+{ 
 	int i=0;
 	int maxi = 1500;
 	
-	QueryPerformanceCounter(&li);
+	auto start = std::chrono::steady_clock::now();
 	
 	for (; i<maxi; ++i) {
 		alg();
 	}
 	
-	QueryPerformanceCounter(&li2);
-	time += li2.QuadPart - li.QuadPart;
+	auto end = std::chrono::steady_clock::now();
+	auto diff = std::chrono::duration_cast<std::chrono::microseconds>(end-start);
 	
-	time = time * 1000000 / (freq.QuadPart * i);
-	printf("%s %d  time=%dus,  time/n=%f, time/nlogn=%f\n", desc, size, (int)time, 
-				float(time)/size, float(time/(size*19.931568569324)));
+	printf("%s %d  time=%dus\n", desc, size, (int)(diff.count()/maxi));
 }
 
 template <typename Fn>

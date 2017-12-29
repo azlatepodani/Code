@@ -218,16 +218,19 @@ static bool parseString(parser_base_t& p, char * first, char * last, ParserTypes
 	auto cur = first;
 	
 	for (;n;--n) {
+		// end of string
 		if (*first == '"') {
 			p.parsed = first+1;
 			return call_string_callback(p, start, cur, report_type);
 		}
 		
+		// copy normal character
 		if (*first != '\\') {
 			*cur++ = *first++;
 			continue;
 		}
 
+		// process escape sequence
 		first++;
 		n--;
 		if (!n) return parse_error(p, No_string_end, start-1);
@@ -312,8 +315,6 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 	if ((*first|0x20) == 'e') {
 		haveExp = true;
 		
-		//if (!haveDot) *cur++ = '.';				// sscanf needs a '.' before 'e'
-		//if (!haveDotDigit) *cur++ = '0';		// sscanf needs a digit between '.' and 'e'
 		*cur++ = *first++;
 
 		// optional +/- signs
