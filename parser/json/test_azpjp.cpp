@@ -9,6 +9,7 @@
 #include <sstream>
 #include <chrono>
 #include <ratio>
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include "azp_json.h"
 
