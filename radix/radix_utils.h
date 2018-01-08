@@ -151,7 +151,7 @@ struct ExtractStringChar {
 
 //
 // Functor for composing functors. c(x) = f(g(x))
-// This allows us to effectivelly combine some of the types above
+// This allows us to effectively combine some of the types above
 //
 template <typename T, typename U>
 struct compose {
@@ -357,23 +357,8 @@ bool compare(const wchar_t* l, const wchar_t* r, int round) NEX {
 	return wcscmp(&l[round], &r[round]) < 0;
 }
 
-//
-// Functions that check if a string has reached its end for a given round.
-// These are already sorted.
-//
-
 template <typename String>
 bool end_of_string(const String& str, int round) NEX {
-	return str.size() <= unsigned(round);
-}
-
-template <>
-bool end_of_string<char *>(char* const& str, int round) NEX {
-	return str[round] == 0;
-}
-
-template <>
-bool end_of_string<wchar_t *>(wchar_t* const& str, int round) NEX {
 	return str[round] == 0;
 }
 
@@ -391,25 +376,23 @@ void recurse_depth_first(RandomIt first, const partitions_t& partitions,
 		auto begin_offset = i ? partitions[i-1].next_offset : 0;
 		auto end_offset = partitions[i].next_offset;
 		
-		if (begin_offset == end_offset) goto _after_sort;
+		auto endp = first+end_offset;
+		auto pp = std::partition(first+begin_offset, endp, [r=round+1](const auto& el) {
+			return end_of_string(el, r);
+		});
 		
-		while (end_of_string(first[begin_offset], round+1)) {
-			++begin_offset;
-			if (begin_offset == end_offset) goto _after_sort;
-		}
+		if (pp == endp) continue;
 		
-		auto diff = end_offset - begin_offset;
+		auto diff = endp - pp;
 		if (diff > 50) {		// magic number empirically determined
-			continuation(first+begin_offset, first+end_offset);
+			continuation(pp, endp);
 		}
 		else if (diff > 1) {
 			auto comp = [round](const auto& l, const auto& r) {
 				return compare(l, r, round);
 			};
-			std::sort(first+begin_offset, first+end_offset, comp);
+			std::sort(pp, endp, comp);
 		}
-		
-		_after_sort:;
 	}
 }
 
