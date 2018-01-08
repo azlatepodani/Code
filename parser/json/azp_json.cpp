@@ -17,6 +17,7 @@ parser_t::parser_t() {
 	error = No_error;
 	err_position = 0;
 	_first = nullptr;
+	parsed_offset = 0;
 }
 
 
@@ -71,6 +72,13 @@ bool parseJson(parser_t& p, char * first, char * last) {
 		return parse_error(p, Runtime_error, first);
 	}
 	
+	if (result) {
+		p.parsed_offset = p.parsed - first;
+	}
+	else {
+		p.parsed = nullptr;
+	}
+	
 	return result;
 }
 
@@ -84,7 +92,11 @@ bool parseJson(parser_t& p, const char * first, const char * last)
 	
 	memcpy(buf.get(), first, size);
 	
-	return parseJson(p, buf.get(), buf.get()+size);
+	auto result = parseJson(p, buf.get(), buf.get()+size);
+	
+	p.parsed = nullptr;	// 'parsed' would be invalid after return
+	
+	return result;
 }
 
 
@@ -523,5 +535,5 @@ static bool parseJsonArray(parser_base_t& p, char * first, char * last) {
 }
 
 
-}
+} // namespace azp
 

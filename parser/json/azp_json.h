@@ -66,6 +66,7 @@ struct parser_base_t {
 	ParserErrors error;		// error hint
 	size_t err_position;	// error position
 	const char * _first;	// saved pointer to buffer start
+	size_t parsed_offset;	// offset of the first character following the parsed string. (=0 during parsing)
 };
 
 
@@ -90,8 +91,13 @@ public:
 	size_t get_err_position() { return err_position; }
 	
 	// Gets the position of the first character following the parsed value.
-	// This function can be used to parse non-conforming or hybrid data.
+	// Returns nullptr if the 'parseJson(parser_t&, const char*, const char*)' function was used.
+	// The value is nullptr if the parser failed to process the string.
 	char * get_parsed() { return parsed; }
+	
+	// Gets the offset of the first character following the parsed value.
+	// The value is 0 if the parser failed to process the string.
+	size_t get_parsed_offset() { return parsed_offset; }
 
 	friend bool parseJson(parser_t& p, char * first, char * last);
 	friend bool parseJson(parser_t& p, const char * first, const char * last);
@@ -99,9 +105,9 @@ public:
 
 
 //
-// Parses a string of chars according to the ECMA-404 The JSON Data Interchange Standard
+// Parses a string of chars according to the ECMA-404 'The JSON Data Interchange Standard'
 //
-// Preconditions: the string is UTF-8 encoded.
+// Preconditions: the string is UTF-8 encoded. The parser's context 'p' is default initialized (do not reuse)
 //
 // Returns true if the string is conform, the maximum recursion depth wasn't reached and
 // the parser's callback didn't return 'false' in any of the invocations.
