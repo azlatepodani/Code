@@ -217,7 +217,8 @@ inline int compute_ranges(partitions_t& partitions, counters_t& valid_part) NEX
 	int sum = partitions[0].count;
 	partitions[0].offset = 0;
 	
-	int vp_size = 0;
+	int vp_size = sum ? 1 : 0;
+	valid_part[0] = 0;
 	
 	for (int i=1; i<256; ++i) {
 		auto count = partitions[i].count;
@@ -274,18 +275,15 @@ void swap_elements_into_place(RandomIt first, partitions_t& partitions, counters
 	// to jump to the next non-empty partition. After each round, the chain is reduced to the
 	// current non-empty set.
 	//
-	if (!vp_size) return;
+	if (vp_size < 2) return;
 	
 	do {
 		sorted = true;
-		int last_invalid = 0;
+		
 		for (int i=0; i<vp_size; ++i)
 		{
 			auto val = partitions[valid_part[i]];
 			
-			valid_part[last_invalid++] = (val.offset < val.next_offset)
-									   ? valid_part[last_invalid] : valid_part[i];
-									   
 			for (; val.offset < val.next_offset; ++val.offset)
 			{
 				auto left = ek(first[val.offset]);
@@ -301,13 +299,10 @@ void swap_elements_into_place(RandomIt first, partitions_t& partitions, counters
 						swap(first[val.offset], first[right_index]);
 					}
 				}
-
-				val.offset++;
 			}
 		}
 
 		if (sorted) break;
-		vp_size = last_invalid;
 	} while (true);
 }
 
