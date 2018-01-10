@@ -254,6 +254,19 @@ struct decide<false> {
 };
 
 
+int compress_vp(counters_t& valid_part, int vp_size) {
+	int new_size = 0;
+	int i = 0;
+	
+	while (vp_size--) {
+		if (valid_part[i] >= 0) valid_part[new_size++] = valid_part[i];
+		i++;
+	}
+	
+	return new_size;
+}
+
+
 //
 // Sorts the data in the buffer pointed to by 'first' by the start positions in 'count' in linear time.
 // The function uses the unqualified call to swap() to allow for client customisation.
@@ -284,25 +297,34 @@ void swap_elements_into_place(RandomIt first, partitions_t& partitions, counters
 		{
 			auto val = partitions[valid_part[i]];
 			
-			for (; val.offset < val.next_offset; ++val.offset)
-			{
-				auto left = ek(first[val.offset]);
-				auto right_index = partitions[left].offset++;
+			if (val.offset < val.next_offset) {
+				for (;;)
+				{
+					auto left = ek(first[val.offset]);
+					auto right_index = partitions[left].offset++;
 
-				if (std::is_scalar<std::iterator_traits<RandomIt>::value_type>::value) {
-					sorted = false;
-					swap(first[val.offset], first[right_index]);
-				}
-				else {
-					if (val.offset != right_index) {
+					if (std::is_scalar<std::iterator_traits<RandomIt>::value_type>::value) {
 						sorted = false;
 						swap(first[val.offset], first[right_index]);
 					}
+					else {
+						if (val.offset != right_index) {
+							sorted = false;
+							swap(first[val.offset], first[right_index]);
+						}
+					}
+					
+					if (++val.offset == val.next_offset) break;
 				}
+			}
+			else {
+				valid_part[i] = -1;	// mark as done
 			}
 		}
 
 		if (sorted) break;
+		
+		vp_size = compress_vp(valid_part, vp_size);
 	} while (true);
 }
 
