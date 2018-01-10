@@ -237,24 +237,8 @@ inline int compute_ranges(partitions_t& partitions, counters_t& valid_part) NEX
 	return vp_size;
 }
 
-template <bool val>
-struct decide {
-	template <typename Fn1, typename Fn2>
-	decide(Fn1&& fn1, Fn2&&) {
-		fn1();
-	}
-};
 
-template <>
-struct decide<false> {
-	template <typename Fn1, typename Fn2>
-	decide(Fn1&& , Fn2&& fn2) {
-		fn2();
-	}
-};
-
-
-int compress_vp(counters_t& valid_part, int vp_size) {
+inline int compress_vp(counters_t& valid_part, int vp_size) {
 	int new_size = 0;
 	int i = 0;
 	
@@ -380,9 +364,9 @@ void recurse_depth_first(RandomIt first, const partitions_t& partitions,
 						 ExtractKey&& ek, NextSort&& continuation, vector_key_t) NEX
 {
 	int round = get_key_round(ek);
+	auto begin_offset = 0;
 	
 	for (int i=0; i<256; ++i) {
-		auto begin_offset = i ? partitions[i-1].next_offset : 0;
 		auto end_offset = partitions[i].next_offset;
 		
 		auto endp = first+end_offset;
@@ -390,20 +374,36 @@ void recurse_depth_first(RandomIt first, const partitions_t& partitions,
 			return end_of_string(el, r);
 		});
 		
-		if (pp == endp) continue;
+		if (pp >= endp-1) continue;
 		
 		auto diff = endp - pp;
 		if (diff > 50) {		// magic number empirically determined
 			continuation(pp, endp);
 		}
-		else if (diff > 1) {
+		else {
 			auto comp = [round](const auto& l, const auto& r) {
 				return compare(l, r, round);
 			};
 			std::sort(pp, endp, comp);
 		}
+		
+		begin_offset = end_offset;
 	}
 }
+
+template <typename RandomIt>
+void call_sort(RandomIt first, RandomIt last) {
+	std::sort(first, last);
+}
+
+template <>
+void call_sort<wchar_t**>(wchar_t** first, wchar_t** last) {
+	auto comp = [](const wchar_t* l, const wchar_t* r) {
+		return compare(l, r, 0);
+	};
+	std::sort(first, last, comp);
+}
+
 
 //
 // Calls the continuation function for each partition.
@@ -420,7 +420,7 @@ void recurse_depth_first(RandomIt first, const partitions_t& partitions,
 			continuation(first+begin_offset, first+end_offset);
 		}
 		else if (diff > 1) {
-			std::sort(first+begin_offset, first+end_offset);
+			call_sort(first+begin_offset, first+end_offset);
 		}
 		
 		begin_offset = end_offset;
