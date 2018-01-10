@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <vector>
 #include <random>
+#include <iostream>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include "radix_sort.h"
@@ -106,7 +107,28 @@ void gen_random_int_array(int n, T min_v, T max_v,
 	}
 }
 
+bool compare(unsigned a, unsigned b, int) { return a<b; }
+bool compare(int a, int b, int) { return a<b; }
 
+template<typename T>
+void print(const T& l, const T& r) {
+	std::cout << l << "\n<<<<<<<<<<<\n" << r << "\n\n";
+}
+
+template<>
+void print<std::string>(const std::string& l, const std::string& r) {
+	std::cout << l.c_str() << L"\n<<<<<<<<<<<\n" << r.c_str() << L"\n\n";
+}
+
+template<>
+void print<std::wstring>(const std::wstring& l, const std::wstring& r) {
+	std::wcout << l.c_str() << L"\n<<<<<<<<<<<\n" << r.c_str() << L"\n\n";
+}
+
+template<>
+void print<const wchar_t*>(const wchar_t* const& l, const wchar_t* const& r) {
+	std::wcout << l << L"\n<<<<<<<<<<<\n" << r << L"\n\n";
+}
 
 template <typename T, typename Fn>
 void benchmark(int size, char * desc, std::vector<T>& vec, std::mt19937& g, Fn alg)
@@ -120,9 +142,11 @@ void benchmark(int size, char * desc, std::vector<T>& vec, std::mt19937& g, Fn a
 	std::vector<T> backup(vec.begin(), vec.begin()+size);
 	alg(&vec[0], &vec[0]+size);
 	//if (!std::is_sorted(&vec[0], &vec[0]+size)) __debugbreak();
-	// if (!std::is_sorted(&vec[0], &vec[0]+size, [](const char* l, const char* r){
-		// return compare(l, r, 0);
-	// })) __debugbreak();
+	for (auto& l=vec.begin(), r=l+1; r != vec.end(); ++l,++r) {
+		if (compare(*r, *l, 0)) {
+			print(*l, *r);
+		}
+	}
 	
 	int i=0;
 	int maxi = 15;//00000 / size;
@@ -206,13 +230,6 @@ void main() {
 	gen_random_string_array(50000, 2, 10240, vec10, g);
 	benchmark("v wchar_t*", vec10, g, [](wchar_t** f, wchar_t** l){radix_sort(f,l);});
 	}
-	/*benchmark("s uint8", vec2, g, [](uint8_t* f, uint8_t* l){std::sort(f,l);});
-	benchmark("s int8", vec2, g, [](int8_t* f, int8_t* l){std::sort(f,l);});
-	benchmark("s uint16", vec3, g, [](uint16_t* f, uint16_t* l){std::sort(f,l);});
-	benchmark("s int16", vec4, g, [](int16_t* f, int16_t* l){std::sort(f,l);});//*/
-	//benchmark("s string", vec5, g, [](std::string* f, std::string* l){std::sort(f,l);});
-	//benchmark("s wstring", vec6, g, [](std::wstring* f, std::wstring* l){std::sort(f,l);});//
-	
 	
 	printf("\n");
 }

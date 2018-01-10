@@ -37,7 +37,7 @@ using vector_key_t = int;
 	
 //	
 // Helper functor for the simplest case - identity mapping
-// The signed version will translate the origin for correct sorting order
+// The signed version will translate the value for correct sorting order
 //
 struct IdentityKey {
 	// Type traits
@@ -205,19 +205,19 @@ partitions_t compute_counts(RandomIt first, RandomIt last, ExtractKey&& ek) NEX
 }
 
 //
-// Converts the 'count' array in-place to an array of start positions and
-// sets the next links in 'chain' for each non-empty partition.
-// The 'end_pos' array will contain the end positions (open ended interval)
+// Converts the 'count' field in-place to corresponding start & end positions in the 'partitions' array.
+// Creates the vector of indeces to non-empty partitions 'valid_part' and returns its size
 //
 // Preconditions:
-//  1. 'count' was initialized by compute_counts()
+//  1. 'partitions' was initialized by compute_counts()
 //
 inline int compute_ranges(partitions_t& partitions, counters_t& valid_part) NEX
 {
 	int sum = partitions[0].count;
 	partitions[0].offset = 0;
 	
-	int vp_size = 0;
+	int vp_size = sum ? 1 : 0;
+	valid_part[0] = 0;
 	
 	for (int i=1; i<256; ++i) {
 		auto count = partitions[i].count;
@@ -236,30 +236,30 @@ inline int compute_ranges(partitions_t& partitions, counters_t& valid_part) NEX
 	return vp_size;
 }
 
-template <bool val>
-struct decide {
-	template <typename Fn1, typename Fn2>
-	decide(Fn1&& fn1, Fn2&&) {
-		fn1();
+//
+// Eliminates the negative values from the array and returns the updated size.
+// A negative index means that the original partition is now processed.
+// @see swap_elements_into_place()
+//
+inline int compress_vp(counters_t& valid_part, int vp_size) {
+	int new_size = 0;
+	int i = 0;
+	
+	while (vp_size--) {
+		if (valid_part[i] >= 0) valid_part[new_size++] = valid_part[i];
+		i++;
 	}
-};
-
-template <>
-struct decide<false> {
-	template <typename Fn1, typename Fn2>
-	decide(Fn1&& , Fn2&& fn2) {
-		fn2();
-	}
-};
-
+	
+	return new_size;
+}
 
 //
-// Sorts the data in the buffer pointed to by 'first' by the start positions in 'count' in linear time.
+// Sorts in linear time the data in the buffer pointed to by 'first' by using the info from 'partitions'.
 // The function uses the unqualified call to swap() to allow for client customisation.
-// The 'count' array elements will be modified by the function.
+// The 'offset' field in the 'partitions' array will be modified by the function.
 //
 // Preconditions:
-//  1. 'count', 'end_pos' and 'chain' are the result of compute_ranges()
+//  1. 'partitions', 'valid_part' and 'vp_size' are the result of compute_ranges()
 //  2. The buffer pointed to by 'first' is identical to the one that generated the ranges
 //
 template <typename RandomIt, typename ExtractKey>
@@ -270,44 +270,39 @@ void swap_elements_into_place(RandomIt first, partitions_t& partitions, counters
 	bool sorted = true;
 	
 	//
-	// In adition to the technique in swap_elements_into_place() from above, we use the chain array
-	// to jump to the next non-empty partition. After each round, the chain is reduced to the
-	// current non-empty set.
+	// We iterate through the non-empty partitions and pick elements from the buffer that will
+	// be swapped into place. A partition is empty if the offset and next_offset fields are equal.
+	// The empty partitions are marked in the 'valid_part' array by using a negative value.
 	//
-	if (!vp_size) return;
+	if (vp_size < 2) return;
 	
 	do {
 		sorted = true;
-		int last_invalid = 0;
+		
 		for (int i=0; i<vp_size; ++i)
 		{
 			auto val = partitions[valid_part[i]];
 			
-			valid_part[last_invalid++] = (val.offset < val.next_offset)
-									   ? valid_part[last_invalid] : valid_part[i];
-									   
-			for (; val.offset < val.next_offset; ++val.offset)
-			{
-				auto left = ek(first[val.offset]);
-				auto right_index = partitions[left].offset++;
+			if (val.offset < val.next_offset) {
+				for (;;)
+				{
+					auto left = ek(first[val.offset]);
+					auto right_index = partitions[left].offset++;
 
-				if (std::is_scalar<std::iterator_traits<RandomIt>::value_type>::value) {
 					sorted = false;
 					swap(first[val.offset], first[right_index]);
+					
+					if (++val.offset == val.next_offset) break;
 				}
-				else {
-					if (val.offset != right_index) {
-						sorted = false;
-						swap(first[val.offset], first[right_index]);
-					}
-				}
-
-				val.offset++;
+			}
+			else {
+				valid_part[i] = -1;	// mark as done
 			}
 		}
 
 		if (sorted) break;
-		vp_size = last_invalid;
+		
+		vp_size = compress_vp(valid_part, vp_size);
 	} while (true);
 }
 
@@ -371,29 +366,47 @@ void recurse_depth_first(RandomIt first, const partitions_t& partitions,
 						 ExtractKey&& ek, NextSort&& continuation, vector_key_t) NEX
 {
 	int round = get_key_round(ek);
+	auto begin_offset = 0;
 	
 	for (int i=0; i<256; ++i) {
-		auto begin_offset = i ? partitions[i-1].next_offset : 0;
 		auto end_offset = partitions[i].next_offset;
 		
 		auto endp = first+end_offset;
-		auto pp = std::partition(first+begin_offset, endp, [r=round+1](const auto& el) {
-			return end_of_string(el, r);
+		auto pp = std::partition(first+begin_offset, endp, [round](const auto& el) {
+			return end_of_string(el, round);
 		});
 		
-		if (pp == endp) continue;
+		if (pp >= endp-1) continue;
 		
 		auto diff = endp - pp;
 		if (diff > 50) {		// magic number empirically determined
 			continuation(pp, endp);
 		}
-		else if (diff > 1) {
+		else {
 			auto comp = [round](const auto& l, const auto& r) {
 				return compare(l, r, round);
 			};
 			std::sort(pp, endp, comp);
 		}
+		
+		begin_offset = end_offset;
 	}
+}
+
+//
+// Hack to get the sorting of wchar* arrays working
+//
+template <typename RandomIt>
+void call_sort(RandomIt first, RandomIt last) {
+	std::sort(first, last);
+}
+
+template <>
+void call_sort<wchar_t**>(wchar_t** first, wchar_t** last) {
+	auto comp = [](const wchar_t* l, const wchar_t* r) {
+		return compare(l, r, 0);
+	};
+	std::sort(first, last, comp);
 }
 
 //
@@ -403,16 +416,18 @@ template <typename RandomIt, typename ExtractKey, typename NextSort>
 void recurse_depth_first(RandomIt first, const partitions_t& partitions,
 						 ExtractKey&&, NextSort&& continuation, scalar_key_t) NEX
 {
+	auto begin_offset = 0;
 	for (int i=0; i<256; ++i) {
-		auto begin_offset = i ? partitions[i-1].next_offset : 0;
 		auto end_offset = partitions[i].next_offset;
 		auto diff = end_offset - begin_offset;
 		if (diff > 75) {		// magic number empirically determined
 			continuation(first+begin_offset, first+end_offset);
 		}
 		else if (diff > 1) {
-			std::sort(first+begin_offset, first+end_offset);
+			call_sort(first+begin_offset, first+end_offset);
 		}
+		
+		begin_offset = end_offset;
 	}
 }
 

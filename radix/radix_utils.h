@@ -37,7 +37,7 @@ using vector_key_t = int;
 	
 //	
 // Helper functor for the simplest case - identity mapping
-// The signed version will translate the origin for correct sorting order
+// The signed version will translate the value for correct sorting order
 //
 struct IdentityKey {
 	// Type traits
@@ -205,12 +205,11 @@ partitions_t compute_counts(RandomIt first, RandomIt last, ExtractKey&& ek) NEX
 }
 
 //
-// Converts the 'count' array in-place to an array of start positions and
-// sets the next links in 'chain' for each non-empty partition.
-// The 'end_pos' array will contain the end positions (open ended interval)
+// Converts the 'count' field in-place to corresponding start & end positions in the 'partitions' array.
+// Creates the vector of indeces to non-empty partitions 'valid_part' and returns its size
 //
 // Preconditions:
-//  1. 'count' was initialized by compute_counts()
+//  1. 'partitions' was initialized by compute_counts()
 //
 inline int compute_ranges(partitions_t& partitions, counters_t& valid_part) NEX
 {
@@ -237,7 +236,11 @@ inline int compute_ranges(partitions_t& partitions, counters_t& valid_part) NEX
 	return vp_size;
 }
 
-
+//
+// Eliminates the negative values from the array and returns the updated size.
+// A negative index means that the original partition is now processed.
+// @see swap_elements_into_place()
+//
 inline int compress_vp(counters_t& valid_part, int vp_size) {
 	int new_size = 0;
 	int i = 0;
@@ -250,14 +253,13 @@ inline int compress_vp(counters_t& valid_part, int vp_size) {
 	return new_size;
 }
 
-
 //
-// Sorts the data in the buffer pointed to by 'first' by the start positions in 'count' in linear time.
+// Sorts in linear time the data in the buffer pointed to by 'first' by using the info from 'partitions'.
 // The function uses the unqualified call to swap() to allow for client customisation.
-// The 'count' array elements will be modified by the function.
+// The 'offset' field in the 'partitions' array will be modified by the function.
 //
 // Preconditions:
-//  1. 'count', 'end_pos' and 'chain' are the result of compute_ranges()
+//  1. 'partitions', 'valid_part' and 'vp_size' are the result of compute_ranges()
 //  2. The buffer pointed to by 'first' is identical to the one that generated the ranges
 //
 template <typename RandomIt, typename ExtractKey>
@@ -268,9 +270,9 @@ void swap_elements_into_place(RandomIt first, partitions_t& partitions, counters
 	bool sorted = true;
 	
 	//
-	// In adition to the technique in swap_elements_into_place() from above, we use the chain array
-	// to jump to the next non-empty partition. After each round, the chain is reduced to the
-	// current non-empty set.
+	// We iterate through the non-empty partitions and pick elements from the buffer that will
+	// be swapped into place. A partition is empty if the offset and next_offset fields are equal.
+	// The empty partitions are marked in the 'valid_part' array by using a negative value.
 	//
 	if (vp_size < 2) return;
 	
@@ -391,6 +393,9 @@ void recurse_depth_first(RandomIt first, const partitions_t& partitions,
 	}
 }
 
+//
+// Hack to get the sorting of wchar* arrays working
+//
 template <typename RandomIt>
 void call_sort(RandomIt first, RandomIt last) {
 	std::sort(first, last);
@@ -403,7 +408,6 @@ void call_sort<wchar_t**>(wchar_t** first, wchar_t** last) {
 	};
 	std::sort(first, last, comp);
 }
-
 
 //
 // Calls the continuation function for each partition.
