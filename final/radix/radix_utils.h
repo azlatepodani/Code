@@ -80,7 +80,7 @@ struct ExtractLowByte {
 	}
 	
 	uint8_t operator()(int16_t val) CST_NEX {
-		return ((uint16_t)val + 0x8000) & 0xFF;
+		return (uint16_t)val & 0xFF;
 	}
 };
 
