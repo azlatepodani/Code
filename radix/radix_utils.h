@@ -370,8 +370,8 @@ void recurse_depth_first(RandomIt first, const partitions_t& partitions,
 		auto end_offset = partitions[i].next_offset;
 		
 		auto endp = first+end_offset;
-		auto pp = std::partition(first+begin_offset, endp, [r=round+1](const auto& el) {
-			return end_of_string(el, r);
+		auto pp = std::partition(first+begin_offset, endp, [round](const auto& el) {
+			return end_of_string(el, round);
 		});
 		
 		if (pp >= endp-1) continue;
