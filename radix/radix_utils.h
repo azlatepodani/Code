@@ -303,16 +303,8 @@ void swap_elements_into_place(RandomIt first, partitions_t& partitions, counters
 					auto left = ek(first[val.offset]);
 					auto right_index = partitions[left].offset++;
 
-					if (std::is_scalar<std::iterator_traits<RandomIt>::value_type>::value) {
-						sorted = false;
-						swap(first[val.offset], first[right_index]);
-					}
-					else {
-						if (val.offset != right_index) {
-							sorted = false;
-							swap(first[val.offset], first[right_index]);
-						}
-					}
+					sorted = false;
+					swap(first[val.offset], first[right_index]);
 					
 					if (++val.offset == val.next_offset) break;
 				}
@@ -420,8 +412,8 @@ template <typename RandomIt, typename ExtractKey, typename NextSort>
 void recurse_depth_first(RandomIt first, const partitions_t& partitions,
 						 ExtractKey&&, NextSort&& continuation, scalar_key_t) NEX
 {
+	auto begin_offset = 0;
 	for (int i=0; i<256; ++i) {
-		auto begin_offset = i ? partitions[i-1].next_offset : 0;
 		auto end_offset = partitions[i].next_offset;
 		auto diff = end_offset - begin_offset;
 		if (diff > 75) {		// magic number empirically determined
@@ -430,6 +422,8 @@ void recurse_depth_first(RandomIt first, const partitions_t& partitions,
 		else if (diff > 1) {
 			std::sort(first+begin_offset, first+end_offset);
 		}
+		
+		begin_offset = end_offset;
 	}
 }
 

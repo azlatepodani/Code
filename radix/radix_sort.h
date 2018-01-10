@@ -77,8 +77,8 @@ inline void radix_sort(uint16_t* first, uint16_t* last) NEX {
 	partitions_t partitions = radix_pass_basic(first, last, ExtractHighByte());
 	
 	int32_t pos = 0;
-	for (int i=256; i; --i) {
-		auto ep = partitions[256-i].next_offset;
+	for (int i=0; i<256; ++i) {
+		auto ep = partitions[i].next_offset;
 		auto diff = ep-pos;
 		if (diff > 150) {
 			radix_pass_basic(first+pos, first+ep, ExtractLowByte());
