@@ -114,7 +114,7 @@ struct Baz {
 void scenario2() {
 	//CallbackManager<Fiz, Baz> cm((Fiz()), (Baz()));
 	//CallbackManager3<Fiz, Baz> cm((Fiz()), (Baz()));
-	CallbackManager<Fiz, Baz> cm((Fiz()), (Baz()));
+	CallbackManager3<Fiz, Baz> cm((Fiz()), (Baz()));
 	LARGE_INTEGER f;
 	QueryPerformanceFrequency(&f);
 	printf("frequency=%I64d\n", f.QuadPart);
@@ -149,6 +149,8 @@ void scenario2() {
 		printf("1 tid %d  time=%I64d\n", GetCurrentThreadId(), b.QuadPart-a.QuadPart);
 	});
 	
+	t1.join();
+	t2.join();
 	
 	CallbackManager2<Fiz, Baz> cm2((Fiz()), (Baz()));
 	//CallbackManager3<Fiz, Baz> cm2((Fiz()), (Baz()));
@@ -178,8 +180,7 @@ void scenario2() {
 		printf("2 tid %d  time=%I64d\n", GetCurrentThreadId(), b.QuadPart-a.QuadPart);
 	});
 	
-	t1.join();
-	t2.join();
+
 	t3.join();
 	t4.join();
 

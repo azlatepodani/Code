@@ -15,6 +15,7 @@
 
 namespace asu {
 
+using namespace azp;
 
 static std::string jsonEscape(const std::string & src);
 
@@ -36,7 +37,7 @@ struct parser_callback_ctx_t {
     JsonValue * result;
 };
 
-static bool parser_callback(void* ctx, enum ParserTypes type, value_t& val) _NOEXCEPT;
+static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val) _NOEXCEPT;
 
 
 
@@ -647,7 +648,7 @@ static int add_scalar_value(parser_callback_ctx_t * cbCtx, JsonValue data) {
 }
 
 
-static bool parser_callback(void* ctx, enum ParserTypes type, value_t& value) _NOEXCEPT {
+static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& value) _NOEXCEPT {
     try {
         parser_callback_ctx_t * cbCtx = (parser_callback_ctx_t *)ctx;
 

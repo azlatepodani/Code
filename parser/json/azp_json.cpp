@@ -112,6 +112,16 @@ static char * skip_wspace(char * first, char * last) {
 }
 
 
+inline bool isDigit(char c) {
+	return (unsigned(c) - '0') < 10;	// if 'c' isn't in ('0' .. '9'), the result is >= 10
+}
+
+
+inline bool isAlpha(char c) {
+	return ((unsigned(c)|0x20) - 'a') <= ('z' - 'a');	// convert capital letters to small letters and test
+}
+
+
 // assumes that '\u' was already parsed
 static bool unescapeUnicodeChar(parser_base_t& p, char * first, char * last, char ** pCur) {
 	if (last-first < 4) return parse_error(p, Invalid_escape, first);
@@ -120,10 +130,10 @@ static bool unescapeUnicodeChar(parser_base_t& p, char * first, char * last, cha
 	
 	//
 #define load_hex() 								\
-	if (*first >= '0' && *first <='9') {		\
+	if (isDigit(*first)) {						\
 		u32 |= *first - '0';					\
 	}											\
-	else if ((*first|0x20) >= 'a' && (*first|0x20) <='z') {	\
+	else if (isAlpha(*first)) {	                \
 		u32 |= (*first|0x20) - 'a' + 10;		\
 	}											\
 	else return parse_error(p, Invalid_escape, first)
@@ -306,7 +316,7 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 	bool haveExpDigit = false;
 
 	// digits
-	while (*first >= '0' && *first <= '9') {
+	while (isDigit(*first)) {
 		*cur++ = *first++;
 		haveDigit = true;
 	}
@@ -317,7 +327,7 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 		*cur++ = *first++;
 		
 		// optional digits after the dot
-		while (*first >= '0' && *first <= '9') {
+		while (isDigit(*first)) {
 			*cur++ = *first++;
 			haveDotDigit = true;
 		}
@@ -333,13 +343,13 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 		if (*first == '-' || *first == '+') *cur++ = *first++;
 	
 		// digits after the exponent
-		while (*first >= '0' && *first <= '9') {
+		while (isDigit(*first)) {
 			*cur++ = *first++;
 			haveExpDigit = true;
 		}
 	}
 	
-	if (first == (last-1) && savedCh >= '0' && savedCh <= '9') {
+	if (first == (last-1) && isDigit(savedCh)) {
 		*cur++ = savedCh;
 		first++;
 		if (haveExp) haveExpDigit = true;
@@ -443,7 +453,7 @@ static bool parseJsonScalarV(parser_base_t& p, char * first, char * last) {
 		return parseString(p, first+1, last, String_val);
 	}
 
-	if (*first >= '0' && *first <= '9' || *first == '-' || *first == '+') {
+	if (isDigit(*first) | (*first == '-') | (*first == '+')) {
 		return parseNumber(p, first, last);
 	}
 	

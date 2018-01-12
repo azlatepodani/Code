@@ -14,6 +14,8 @@
 #include "json/reader.h"
 //#include "asw\generic\strings.h"
 
+#pragma comment(lib, "libjson.lib")
+
 
 // https://github.com/open-source-parsers/jsoncpp
 
