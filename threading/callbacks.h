@@ -3,7 +3,8 @@
 
 
 template <typename F, typename G>
-struct CallbackManager {
+struct CallbackManager
+{
 	CallbackManager(F f, G g)
 		: _f(std::move(f)), _g(std::move(g))
 	{
@@ -22,7 +23,7 @@ struct CallbackManager {
 	
 	void invalidate() {
 		_valid.store(false, std::memory_order_relaxed);
-		// after this point no new calls will be made. Any inflight calls are still running
+		// after this point no new calls will be made. Any in-flight calls are still running
 		printf("flag set\n");
 	}
 	
@@ -34,11 +35,12 @@ struct CallbackManager {
 
 
 extern "C" __declspec(dllimport) void _stdcall Sleep(unsigned long);
-auto p_sleep = [](unsigned long milis) { ::Sleep(milis); };
+auto p_sleep = [](unsigned long millis) { ::Sleep(millis); };
 
 
 template <typename F, typename G>
-struct CallbackManager2 {
+struct CallbackManager2
+{
 	CallbackManager2(F f, G g)
 		: _f(std::move(f)), _g(std::move(g)), _count(0)
 	{
@@ -49,7 +51,7 @@ struct CallbackManager2 {
 		if (!_valid.load(std::memory_order_acquire)) return;
 		
 		bump_count bc(*this);
-		if (!_valid.load(std::memory_order_relaxed)) return;
+		if (!_valid.load(std::memory_order_release)) return;
 		
 		_f("Foo2()\n");
 	}
@@ -58,14 +60,14 @@ struct CallbackManager2 {
 		if (!_valid.load(std::memory_order_acquire)) return;
 		
 		bump_count bc(*this);
-		if (!_valid.load(std::memory_order_relaxed)) return;
+		if (!_valid.load(std::memory_order_release)) return;
 		
 		_g("Bar2()\n");
 	}
 	
 	void invalidate() {
-		_valid.store(false, std::memory_order_relaxed);
-		// after this point no new calls will be made. Wait for any inflight calls
+		_valid.store(false, std::memory_order_acquire);
+		// after this point no new calls will be made. Wait for any in-flight calls
 		
 		int loops = 0;
 		while (_count.load(std::memory_order_relaxed))
@@ -156,7 +158,7 @@ struct CallbackManager3 {
 	void invalidate() {
 		std::unique_lock<std::mutex> guard(_lock);
 		_valid = false;
-		// after this point no new calls will be made. Wait for any inflight calls
+		// after this point no new calls will be made. Wait for any in-flight calls
 		
 		int loops = 0;
 		while (_count)
@@ -183,4 +185,37 @@ struct CallbackManager3 {
 	long _count;
 };
 
+
+
+template <typename F, typename G>
+struct CallbackManager4 {
+	CallbackManager4(F f, G g)
+		: _f(std::move(f)), _g(std::move(g)), _valid(true)
+	{ }
+
+	void call_f() {
+		std::lock_guard<std::mutex> guard(_lock);
+		if (!_valid) return;
+		
+		_f("Foo2()\n");
+	}
+	
+	void call_g() {
+		std::lock_guard<std::mutex> guard(_lock);
+		if (!_valid) return;
+		
+		_g("Bar2()\n");
+	}
+	
+	void invalidate() {
+		std::unique_lock<std::mutex> guard(_lock);
+		_valid = false;
+	}
+	
+	F _f;
+	G _g;
+	
+	std::mutex _lock;
+	bool _valid;
+};
 

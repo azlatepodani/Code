@@ -99,23 +99,22 @@ long bbb;
 
 struct Fiz {
 	void operator()(const char * str) {
-		long c;
-		*(volatile long*)&aaa = c;
+		*(volatile long*)&aaa = *str;
 	}
 };
 
 
 struct Baz {
 	void operator()(const char * str) {
-		long c;
-		*(volatile long*)&bbb = c;
+		*(volatile long*)&bbb = *str;
 	}
 };
 
 
 void scenario2() {
 	//CallbackManager<Fiz, Baz> cm((Fiz()), (Baz()));
-	CallbackManager3<Fiz, Baz> cm((Fiz()), (Baz()));
+	//CallbackManager3<Fiz, Baz> cm((Fiz()), (Baz()));
+	CallbackManager<Fiz, Baz> cm((Fiz()), (Baz()));
 	LARGE_INTEGER f;
 	QueryPerformanceFrequency(&f);
 	printf("frequency=%I64d\n", f.QuadPart);
@@ -152,6 +151,7 @@ void scenario2() {
 	
 	
 	CallbackManager2<Fiz, Baz> cm2((Fiz()), (Baz()));
+	//CallbackManager3<Fiz, Baz> cm2((Fiz()), (Baz()));
 	auto t3 = std::thread([&cm2]() {
 		LARGE_INTEGER a,b;
 		QueryPerformanceCounter(&a);
