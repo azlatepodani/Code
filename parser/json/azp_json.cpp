@@ -155,7 +155,7 @@ static bool unescapeUnicodeChar(parser_base_t& p, char * first, char * last, cha
 	first++;
 
 	if (u32 >= 0xD800 && u32 < 0xE000) {
-		if ((u32 >> 10) != 0x36) {	// incorrect bit pattern
+		if (u32 >= 0xDC00) {	// incorrect bit pattern
 			return parse_error(p, Invalid_escape, first-4);
 		}
 		
@@ -183,7 +183,7 @@ static bool unescapeUnicodeChar(parser_base_t& p, char * first, char * last, cha
 		load_hex();
 		first++;
 
-		if (u32 >= 0xD800 && u32 < 0xE000 && (u32 >> 10) == 0x37) {  // second word
+		if (u32 >= 0xDC00 && u32 < 0xE000) {  // second word
 			u32 = (u32 & 0x3FF) + ((saved & 0x3FF) << 10) + 0x10000; // convert to code point
 		}
 		else return parse_error(p, Invalid_escape, first-4);
