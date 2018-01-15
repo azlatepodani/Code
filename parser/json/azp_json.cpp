@@ -117,8 +117,8 @@ inline bool isDigit(char c) {
 }
 
 
-inline bool isAlpha(char c) {
-	return ((unsigned(c)|0x20) - 'a') <= ('z' - 'a');	// convert capital letters to small letters and test
+inline bool isHexAlpha(char c) {
+	return ((unsigned(c)|0x20) - 'a') <= ('f' - 'a');	// convert capital letters to small letters and test
 }
 
 
@@ -133,7 +133,7 @@ static bool unescapeUnicodeChar(parser_base_t& p, char * first, char * last, cha
 	if (isDigit(*first)) {						\
 		u32 |= *first - '0';					\
 	}											\
-	else if (isAlpha(*first)) {	                \
+	else if (isHexAlpha(*first)) {	            \
 		u32 |= (*first|0x20) - 'a' + 10;		\
 	}											\
 	else return parse_error(p, Invalid_escape, first)
@@ -190,6 +190,10 @@ static bool unescapeUnicodeChar(parser_base_t& p, char * first, char * last, cha
 	}
 	
 	// write as UTF-8
+	// note: we don't need to test if 'cur' reaches the end of the buffer, because
+	// the unescape operation always writes less characters than it parses. E.g.
+	// \uFFFF -> ef bf bf
+	// \uDBFF\uDFFF -> f4 8f bf bf
 	auto cur = *pCur;
 	if (u32 < 128) {
 		*cur++ = (char)u32;
@@ -299,31 +303,46 @@ static bool parseString(parser_base_t& p, char * first, char * last, ParserTypes
 
 // assumes first != last
 static bool parseNumber(parser_base_t& p, char * first, char * last) {
-	char buf[64];
+	char buf[336]; // longest valid long long string "-9223372036854775807" (19 + 1)
+				   // longest valid double string length is ~330 chars long; 336 is divisible by 8
 	char * cur = buf;
 	char * savedFirst = first;
+	
+	if (last - first > sizeof(buf) - 1) {
+		// adjust last so that we don't attempt to parse more than the buffer size
+		last = first + sizeof(buf) - 1;
+	}
+	
 	auto savedCh = *(last-1);
 	*(last-1) = 0; // sentinel
 	
-	// optional +/- signs
+	// optional '-' sign
 	if (*first == '-') *cur++ = *first++;
-	if (*first == '+') first++;
 
 	bool haveDigit = false;
+	bool leadingZero = false;
 	bool haveDot = false;
 	bool haveExp = false;
 	bool haveDotDigit = false;
 	bool haveExpDigit = false;
 
-	// digits
-	while (isDigit(*first)) {
-		*cur++ = *first++;
+	if (*first == '0') {	// no leading zeroes allowed
+		*cur++ = *first++;	// valid input: 0, 0.x, 0ex
 		haveDigit = true;
+		leadingZero = true;
+	}
+	else {
+		// digits
+		while (isDigit(*first)) {
+			*cur++ = *first++;
+			haveDigit = true;
+		}
 	}
 	
 	// optional '.<digits>'
 	if (*first == '.') {
 		haveDot = true;
+		leadingZero = false;
 		*cur++ = *first++;
 		
 		// optional digits after the dot
@@ -336,6 +355,7 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 	// optional 'e[sign]<digits>'
 	if ((*first|0x20) == 'e') {
 		haveExp = true;
+		leadingZero = false;
 		
 		*cur++ = *first++;
 
@@ -349,7 +369,7 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 		}
 	}
 	
-	if (first == (last-1) && isDigit(savedCh)) {
+	if (first == (last-1) && !leadingZero && isDigit(savedCh)) {
 		*cur++ = savedCh;
 		first++;
 		if (haveExp) haveExpDigit = true;
@@ -370,12 +390,20 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 	bool result;
 	if (haveDot | haveExp) {		
 		value_t val;
-		val.number = atof(buf);
+		val.number = strtod(buf, nullptr);
+		if (val.number == HUGE_VAL || val.number == -HUGE_VAL) {
+			return parse_error(p, Invalid_number, savedFirst);
+		}
+		
 		result = wrap_user_callback(Number_float, val, first);
 	}
 	else {
 		value_t val;
-		val.integer = atoll(buf);
+		val.integer = strtoll(buf, nullptr, 10);
+		if ((val.integer == LLONG_MAX || val.integer ==  LLONG_MIN) && (errno == ERANGE)) {
+			return parse_error(p, Invalid_number, savedFirst);
+		}
+		
 		result = wrap_user_callback(Number_float, val, first);
 	}
 	
@@ -453,7 +481,7 @@ static bool parseJsonScalarV(parser_base_t& p, char * first, char * last) {
 		return parseString(p, first+1, last, String_val);
 	}
 
-	if (isDigit(*first) | (*first == '-') | (*first == '+')) {
+	if (isDigit(*first) | (*first == '-')) {
 		return parseNumber(p, first, last);
 	}
 	
