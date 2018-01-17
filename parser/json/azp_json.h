@@ -86,18 +86,22 @@ public:
 		max_recursion = maxr;
 	}
 	
-	ParserErrors get_error() { return error; }
+	int get_max_recursion() const {
+		return max_recursion;
+	}
 	
-	size_t get_err_position() { return err_position; }
+	ParserErrors get_error() const { return error; }
+	
+	size_t get_err_position() const { return err_position; }
 	
 	// Gets the position of the first character following the parsed value.
 	// Returns nullptr if the 'parseJson(parser_t&, const char*, const char*)' function was used.
 	// The value is nullptr if the parser failed to process the string.
-	char * get_parsed() { return parsed; }
+	char * get_parsed() const { return parsed; }
 	
 	// Gets the offset of the first character following the parsed value.
 	// The value is 0 if the parser failed to process the string.
-	size_t get_parsed_offset() { return parsed_offset; }
+	size_t get_parsed_offset() const { return parsed_offset; }
 
 	friend bool parseJson(parser_t& p, char * first, char * last);
 	friend bool parseJson(parser_t& p, const char * first, const char * last);
