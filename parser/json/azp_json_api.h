@@ -10,7 +10,8 @@ namespace azp {
 struct JsonObjectField;
 struct JsonValue;
 
-using alloc_t = freelist_alloc_t<default_alloc_t, 224>;
+//using alloc_t = freelist_alloc_t<default_alloc_t, 224>;
+using alloc_t = default_alloc_t;
 
 typedef vector<JsonObjectField, alloc_t>  JsonObject;
 typedef vector<JsonValue, alloc_t>  JsonArray;
@@ -151,7 +152,7 @@ struct JsonValue {
 };
 
 
-void json_writer(std::ostream& stm, const JsonValue& val);
+void json_writer(std::string& stm, const JsonValue& val);
 void json_reader(std::istream& stm, JsonValue& val);
 std::pair<JsonValue, std::string> json_reader(const std::string& stm);
 

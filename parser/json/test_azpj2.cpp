@@ -43,9 +43,9 @@ std::string loadFile(const wchar_t * path) {
 
 
 std::string writeJson(const JsonValue& root) {
-	std::stringstream stm;
+	std::string stm;
 	json_writer(stm, root);
-	return stm.str();
+	return stm;
 }
 
 
@@ -92,7 +92,7 @@ void wmain(int argc, PWSTR argv[]) {
 	
 	benchmark("Json API load",  [&str](){parseJson(str);});
 	auto root = parseJson(str);
-	//benchmark("Json API write", [&root](){writeJson(root);});
+	benchmark("Json API write", [&root,&str](){if (str != writeJson(root.first)) __debugbreak();});
 	
 	printf("\n");
 }

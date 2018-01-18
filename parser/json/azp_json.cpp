@@ -405,7 +405,7 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 			return parse_error(p, Invalid_number, savedFirst);
 		}
 		
-		result = wrap_user_callback(Number_float, val, first);
+		result = wrap_user_callback(Number_int, val, first);
 	}
 	
 	p.parsed = first;

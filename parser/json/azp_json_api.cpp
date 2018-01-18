@@ -17,8 +17,8 @@ namespace azp {
 
 static std::string jsonEscape(const std::string & src);
 
-static void json_writer_object(std::ostream& stm, const JsonObject& val);
-static void json_writer_array(std::ostream& stm, const JsonArray& val);
+static void json_writer_object(std::string& stm, const JsonObject& val);
+static void json_writer_array(std::string& stm, const JsonArray& val);
 
 static JsonValue* json_build_parent_chain(JsonValue* val, const JsonString& path);
 
@@ -249,7 +249,7 @@ JsonValue::~JsonValue() {
 }
 
 
-void json_writer(std::ostream& stm, const JsonValue& val) {
+void json_writer(std::string& stm, const JsonValue& val) {
 	switch (val.type) {
 		case val.OBJECT:
 			json_writer_object(stm, val.object());
@@ -260,31 +260,35 @@ void json_writer(std::ostream& stm, const JsonValue& val) {
 			break;
 			
 		case val.STRING:
-			stm << '"' << jsonEscape(val.string()) << '"';
+			stm.push_back('"');
+			stm.append(jsonEscape(val.string()));
+			stm.push_back('"');
 			break;
 			
 		case val.STRING_VIEW:
-			__debugbreak();
+			stm.push_back('"');
+			stm.append(jsonEscape(std::string(val.u.view.str, val.u.view.len)));
+			stm.push_back('"');
 			break;
 			
 		case val.NUMBER:
-			stm << val.u.number;
+			stm.append(std::to_string(val.u.number));
 			break;
 			
 		case val.FLOAT_NUM:
-			stm << double_to_string(val.u.float_num);
+			stm.append(double_to_string(val.u.float_num));
 			break;
 			
 		case val.BOOL_TRUE:
-			stm << "true";
+			stm.append("true");
 			break;
 			
 		case val.BOOL_FALSE:
-		    stm << "false";
+		    stm.append("false");
 			break;
 			
 		default: // case EMPTY:
-			stm << "null";
+			stm.append("null");
 	}
 }
 
@@ -507,19 +511,15 @@ static const char * const esctab[0x20] = {
 
 static const char * escape(char ch)
 {
-    if (ch >= 0 && ch < 0x20) {
+	if (ch == '"') return "\\\"";
+	if (ch == '\\') return "\\\\";
+	
+    if (unsigned(ch) < 0x20) {
         return esctab[ch];
     }
 
-    switch (ch) {
-        case '"':  return "\\\"";
-        case '\\': return "\\\\";
-        case '/':  return "\\/";
+    if (ch == '/')  return "\\/";
 
-        default: break;
-    }
-
-    _ASSERT_EXPR(0, "BUG: nothing to escape");
     return "";
 }
 
@@ -551,32 +551,41 @@ static std::string jsonEscape(const std::string & src)
 }
 
 
-static void json_writer_object(std::ostream& stm, const JsonObject& val) {
-	stm << '{';
+static void json_writer_object(std::string& stm, const JsonObject& val) {
+	stm.push_back('{');
+	
 	if (val.cbegin() != val.cend()) {
 		auto it = val.cbegin();
-		stm << '"' << jsonEscape(it->name) << "\":";
+		stm.push_back('"');
+		stm.append(jsonEscape(it->name));
+		stm.push_back('"');
+		stm.push_back(':');
 		json_writer(stm, it->value);
 		for (++it; it != val.cend(); ++it) {
-			stm << ",\"" << jsonEscape(it->name) << "\":";
+			stm.push_back(',');
+			stm.push_back('"');
+			stm.append(jsonEscape(it->name));
+			stm.push_back('"');
+			stm.push_back(':');
 			json_writer(stm, it->value);
 		}
 	}
-	stm << '}';
+	
+	stm.push_back('}');
 }
 
 
-static void json_writer_array(std::ostream& stm, const JsonArray& val) {
-	stm << '[';
+static void json_writer_array(std::string& stm, const JsonArray& val) {
+	stm.push_back('[');
 	if (val.cbegin() != val.cend()) {
 		auto it = val.cbegin();
 		json_writer(stm, *it);
 		for (++it; it != val.cend(); ++it) {
-			stm << ",";
+			stm.push_back(',');
 			json_writer(stm, *it);
 		}
 	}
-	stm << ']';
+	stm.push_back(']');
 }
 
 
@@ -659,7 +668,7 @@ static JsonValue* json_build_parent_chain(JsonValue* val, const JsonString& path
 }*/
 
 template <typename Allocator>
-static int add_scalar_value(parser_callback_ctx_t<Allocator>& cbCtx, JsonValue data) {
+static int add_scalar_value(parser_callback_ctx_t<Allocator>& cbCtx, JsonValue&& data) {
     JsonValue& val = cbCtx.stack.back();
 
     if (val.type == val.OBJECT) {
@@ -695,7 +704,7 @@ static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val
 		cbCtx.stack.pop_back();
 
 		if (cbCtx.stack.begin() != cbCtx.stack.end()) {
-			return add_scalar_value(cbCtx, obj);
+			return add_scalar_value(cbCtx, std::move(obj));
 		}
 		else {
 			// we're done

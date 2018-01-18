@@ -76,12 +76,18 @@ void vector<T, Allocator>::reserve(size_t requested) {
 	auto b = _a.alloc(requested * sizeof(T));
 	if (!b.p) throw std::bad_alloc();
 	
+	T* target = (T*)b.p;
+	for (auto it=_start; it != _end; ++it) {
+		new (target) T(std::move(*it));
+		target++;
+	}
+	
 	if (_start) {
 		_a.free({_start, cap*sizeof(T)});
 	}
 	
 	_start = (T*)b.p;
-	_end = _start;
+	_end = target;
 	_max = _start + requested;
 }
 

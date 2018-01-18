@@ -123,8 +123,32 @@ struct freelist_alloc_t {
 		}
 	}
 	
+	freelist_alloc_t() = default;
+	
 	~freelist_alloc_t() {
 		free_all();
+	}
+	
+	freelist_alloc_t(const freelist_alloc_t& other) : _parent(other.parent), _head(nullptr) { }
+	
+	freelist_alloc_t(freelist_alloc_t&& other)
+		: _parent(std::move(other._parent))
+		, _head(other._head)
+	{
+		other._head = nullptr;
+	}
+	
+	freelist_alloc_t& operator=(const freelist_alloc_t& other) {
+		freelist_alloc_t tmp(other);
+		swap(*this, tmp);
+		return *this;
+	}
+	
+	freelist_alloc_t& operator=(freelist_alloc_t&& other) {
+		_parent = std::move(other._parent);
+		_head = other._head;
+		other._head = nullptr;
+		return *this;
 	}
 	
 	Allocator _parent;
