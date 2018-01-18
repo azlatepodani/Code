@@ -304,7 +304,8 @@ static bool parseString(parser_base_t& p, char * first, char * last, ParserTypes
 // assumes first != last
 static bool parseNumber(parser_base_t& p, char * first, char * last) {
 	char buf[336]; // longest valid long long string "-9223372036854775807" (19 + 1)
-				   // longest valid double string length is ~330 chars long; 336 is divisible by 8
+				   // longest valid double string length is ~330 chars long
+				   // 336 was selected because is divisible by 8 (stack alignment size on x64)
 	char * cur = buf;
 	char * savedFirst = first;
 	
@@ -326,7 +327,7 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 	bool haveDotDigit = false;
 	bool haveExpDigit = false;
 
-	if (*first == '0') {	// no leading zeroes allowed
+	if (*first == '0') {	// no leading zeros allowed
 		*cur++ = *first++;	// valid input: 0, 0.x, 0ex
 		haveDigit = true;
 		leadingZero = true;
