@@ -33,6 +33,8 @@ struct vector {
 
 	size_t capacity() const { return _max - _start; }
 	size_t size() const { return _end - _start; }
+	
+	void set_size(size_t s) { _end = _start + s; }	// extension
 
 	T* begin() { return _start; }
 	const T* begin() const { return _start; }
@@ -171,7 +173,7 @@ vector<T, Allocator>& vector<T, Allocator>::operator=(const vector<T, Allocator>
 template <typename T, typename Allocator>
 void vector<T, Allocator>::push_back(const T& val)
 {
-	push_back(T(val));
+	push_back(std::move(T(val)));
 }
 
 template <typename T, typename Allocator>

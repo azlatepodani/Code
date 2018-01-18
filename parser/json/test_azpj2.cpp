@@ -92,7 +92,7 @@ void wmain(int argc, PWSTR argv[]) {
 	
 	benchmark("Json API load",  [&str](){parseJson(str);});
 	auto root = parseJson(str);
-	benchmark("Json API write", [&root,&str](){if (str != writeJson(root.first)) __debugbreak();});
+	benchmark("Json API write", [&root,&str](){/*if (str != */writeJson(root.first)/*) __debugbreak()*/;});
 	
 	printf("\n");
 }

@@ -29,6 +29,8 @@ static double string_to_double(const std::string& s);
 static long long string_to_longlong(const std::string& s);
 static std::string longlong_to_string(long long num);
 
+static void json_writer(vector<char>& out, const JsonValue& val);
+
 
 template <typename Allocator>
 struct parser_callback_ctx_t {
@@ -482,7 +484,7 @@ std::pair<JsonValue, std::string> json_reader(const std::string& stm) {
 
 static bool needEscape(char ch)
 {
-    if (ch >= 0 && ch < 0x20) {
+    if ((unsigned char)ch < 0x20) {
         return true;
     }
 
@@ -523,6 +525,25 @@ static const char * escape(char ch)
     return "";
 }
 
+static void escape(vector<char>& out, char ch)
+{
+	if ((ch == '"') | (ch == '\\') | (ch == '/')) {
+		out.push_back('\\');
+		out.push_back(ch);
+		return;
+	}
+	else {
+		if (unsigned(ch) < 0x20) {
+			auto str = esctab[ch];
+			while (*str) out.push_back(*str++);
+			return;
+		}
+	}
+
+    out.push_back(ch);
+}
+
+
 
 static std::string jsonEscape(const std::string & src)
 {
@@ -551,6 +572,25 @@ static std::string jsonEscape(const std::string & src)
 }
 
 
+
+static void jsonEscape(vector<char>& out, const char* first, size_t len) {
+	auto last = first + len;
+	
+	out.reserve(out.size() + len);
+	
+    while (first != last) {
+        escape(out, *first++);
+    }
+}
+
+
+static void jsonEscape(vector<char>& out, const std::string& src)
+{
+	jsonEscape(out, src.c_str(), src.size());
+}
+
+
+
 static void json_writer_object(std::string& stm, const JsonObject& val) {
 	stm.push_back('{');
 	
@@ -575,6 +615,31 @@ static void json_writer_object(std::string& stm, const JsonObject& val) {
 }
 
 
+static void json_writer_object(vector<char>& out, const JsonObject& val) {
+	out.push_back('{');
+	
+	if (val.cbegin() != val.cend()) {
+		auto it = val.cbegin();
+		out.push_back('"');
+		jsonEscape(out, it->name);
+		out.push_back('"');
+		out.push_back(':');
+		json_writer(out, it->value);
+		for (++it; it != val.cend(); ++it) {
+			out.push_back(',');
+			out.push_back('"');
+			jsonEscape(out, it->name);
+			out.push_back('"');
+			out.push_back(':');
+			json_writer(out, it->value);
+		}
+	}
+	
+	out.push_back('}');
+}
+
+
+
 static void json_writer_array(std::string& stm, const JsonArray& val) {
 	stm.push_back('[');
 	if (val.cbegin() != val.cend()) {
@@ -587,6 +652,83 @@ static void json_writer_array(std::string& stm, const JsonArray& val) {
 	}
 	stm.push_back(']');
 }
+
+
+static void json_writer_array(vector<char>& out, const JsonArray& val) {
+	out.push_back('[');
+	if (val.cbegin() != val.cend()) {
+		auto it = val.cbegin();
+		json_writer(out, *it);
+		for (++it; it != val.cend(); ++it) {
+			out.push_back(',');
+			json_writer(out, *it);
+		}
+	}
+	out.push_back(']');
+}
+
+
+static void append(vector<char>& out, const std::string& s) {
+	auto remaining = s.size();
+	out.reserve(out.size() + s.size());
+	auto first = s.c_str();
+	while (remaining--) {
+		out.push_back(*first++);
+	}
+}
+
+
+static void json_writer(vector<char>& out, const JsonValue& val) {
+	switch (val.type) {
+		case val.OBJECT:
+			json_writer_object(out, val.object());
+			break;
+
+		case val.ARRAY:
+			json_writer_array(out, val.array());
+			break;
+			
+		case val.STRING:
+			out.push_back('"');
+			jsonEscape(out, val.string());
+			out.push_back('"');
+			break;
+			
+		case val.STRING_VIEW:
+			out.push_back('"');
+			jsonEscape(out, val.u.view.str, val.u.view.len);
+			out.push_back('"');
+			break;
+			
+		case val.NUMBER:
+			append(out, std::to_string(val.u.number));
+			break;
+			
+		case val.FLOAT_NUM:
+			append(out, double_to_string(val.u.float_num));
+			break;
+			
+		case val.BOOL_TRUE:
+			append(out, "true");
+			break;
+			
+		case val.BOOL_FALSE:
+		    append(out, "false");
+			break;
+			
+		default: // case EMPTY:
+			append(out, "null");
+	}
+}
+
+
+void json_writer3(std::string& stm, const JsonValue& val) {
+	default_alloc_t a;
+	vector<char> out(a, 128);
+	json_writer(out, val);
+	stm.assign(out.begin(), out.end());
+}
+
 
 
 static JsonValue* json_get_immediate_child(JsonValue* val, const std::string& ipath) {
