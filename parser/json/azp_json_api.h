@@ -10,8 +10,10 @@ namespace azp {
 struct JsonObjectField;
 struct JsonValue;
 
-typedef vector<JsonObjectField>  JsonObject;
-typedef vector<JsonValue>  JsonArray;
+using alloc_t = freelist_alloc_t<default_alloc_t, 224>;
+
+typedef vector<JsonObjectField, alloc_t>  JsonObject;
+typedef vector<JsonValue, alloc_t>  JsonArray;
 typedef std::string  JsonString;
 
 static_assert(sizeof(JsonString) >= sizeof(JsonObject), "check JsonValue::Impl::buf size");
@@ -176,7 +178,7 @@ struct JsonObjectField {
 	JsonObjectField() = default;
 	
 	JsonObjectField(JsonString name_, JsonValue value_)
-		: name(name_), value(value_) { }
+		: name(std::move(name_)), value(std::move(value_)) { }
 	
 	JsonObjectField(const JsonObjectField& other)
 		: name(other.name)

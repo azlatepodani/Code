@@ -33,14 +33,14 @@ static std::string longlong_to_string(long long num);
 template <typename Allocator>
 struct parser_callback_ctx_t {
 	parser_callback_ctx_t(Allocator& a) : stack(a), a(a) { }
-    vector<JsonValue> stack;
+    vector<JsonValue, Allocator> stack;
     JsonValue * result;
 	Allocator& a;
 };
 
+
 template <typename Allocator>
 static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val) _NOEXCEPT;
-
 
 
 bool operator==(const JsonValue& left, const JsonValue& right) {
@@ -458,13 +458,13 @@ std::pair<JsonValue, std::string> json_reader(const std::string& stm) {
 
     parser_t p;
 
-	default_alloc_t a;
-    auto ctx = parser_callback_ctx_t<default_alloc_t>(a);
-	
+	alloc_t a;
+    auto ctx = parser_callback_ctx_t<alloc_t>(a);
+
+	p.set_max_recursion(20);
 	ctx.stack.reserve(p.get_max_recursion());
 	
-	p.set_callback(&parser_callback<default_alloc_t>, &ctx);
-    //config.depth = 30;
+	p.set_callback(&parser_callback<alloc_t>, &ctx);
 
 	std::pair<JsonValue, std::string> val;
     ctx.result = &val.first;
@@ -659,21 +659,18 @@ static JsonValue* json_build_parent_chain(JsonValue* val, const JsonString& path
 }*/
 
 template <typename Allocator>
-static int add_scalar_value(parser_callback_ctx_t<Allocator> * cbCtx, JsonValue data) {
-    if (cbCtx->stack.begin() == cbCtx->stack.end()) {
-        return false;   // this should be possible only if there is a bug in this function or in the parser
-    }
+static int add_scalar_value(parser_callback_ctx_t<Allocator>& cbCtx, JsonValue data) {
+    JsonValue& val = cbCtx.stack.back();
 
-    JsonValue& val = cbCtx->stack.back();
-
-    if (val.type == val.ARRAY) {
-        val.array().push_back(std::move(data));
-    }
-    else if (val.type == val.OBJECT) {
+    if (val.type == val.OBJECT) {
         val.object().back().value = std::move(data);
     }
+    else if (val.type == val.ARRAY) {
+        val.array().push_back(std::move(data));
+    }
     else {
-        return false;   // this should be possible only if there is a bug in this function or in the parser
+        //val = std::move(data);
+		return false;
     }
 
     return true;
@@ -682,75 +679,58 @@ static int add_scalar_value(parser_callback_ctx_t<Allocator> * cbCtx, JsonValue 
 
 template <typename Allocator>
 static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& value) _NOEXCEPT {
-    try {
-        auto* cbCtx = (parser_callback_ctx_t<Allocator> *)ctx;
+	auto& cbCtx = *(parser_callback_ctx_t<Allocator> *)ctx;
+	
+	switch (type)
+	{
+	case Array_begin:
+		cbCtx.stack.push_back(JsonValue(JsonArray(cbCtx.a, 4)));
+		break;
+	case Object_begin:
+		cbCtx.stack.push_back(JsonValue(JsonObject(cbCtx.a, 4)));
+		break;
+	case Array_end:
+	case Object_end: {
+		JsonValue obj(std::move(cbCtx.stack.back()));
+		cbCtx.stack.pop_back();
 
-        switch (type)
-        {
-        case Array_begin:
-            cbCtx->stack.push_back(JsonValue(JsonArray(cbCtx->a, 4)));
-            break;
-        case Object_begin:
-            cbCtx->stack.push_back(JsonValue(JsonObject(cbCtx->a, 4)));
-            break;
-        case Array_end:
-        case Object_end: {
-            if (cbCtx->stack.begin() == cbCtx->stack.end()) {
-                return false;   // this should be possible only if there is a bug in this function or in the parser
-            }
+		if (cbCtx.stack.begin() != cbCtx.stack.end()) {
+			return add_scalar_value(cbCtx, obj);
+		}
+		else {
+			// we're done
+			*cbCtx.result = std::move(obj);
+		}
+		break;
+	}
+	case Number_int:
+		return add_scalar_value(cbCtx, JsonValue(value.integer));
 
-            JsonValue obj(cbCtx->stack.back());
-            cbCtx->stack.pop_back();
+	case Number_float:
+		return add_scalar_value(cbCtx, JsonValue(value.number));
 
-            if (cbCtx->stack.begin() != cbCtx->stack.end()) {
-                return add_scalar_value(cbCtx, obj);
-            }
-            else {
-                // we're done
-                *cbCtx->result = std::move(obj);
-            }
-            break;
-        }
-        case Number_int:
-            return add_scalar_value(cbCtx, JsonValue(value.integer));
+	case Null_val:
+		return add_scalar_value(cbCtx, JsonValue());
 
-        case Number_float:
-            return add_scalar_value(cbCtx, JsonValue(value.number));
+	case Bool_true:
+		return add_scalar_value(cbCtx, JsonValue(true));
 
-        case Null_val:
-            return add_scalar_value(cbCtx, JsonValue());
+	case Bool_false:
+		return add_scalar_value(cbCtx, JsonValue(false));
 
-        case Bool_true:
-            return add_scalar_value(cbCtx, JsonValue(true));
+	case String_val: {
+		JsonValue data(string_view_t{value.string, value.length});
+		return add_scalar_value(cbCtx, std::move(data));
+	}
+	case Object_key: {
+		JsonValue& obj = cbCtx.stack.back();
 
-        case Bool_false:
-            return add_scalar_value(cbCtx, JsonValue(false));
-
-        case String_val: {
-            JsonValue data(string_view_t{value.string, value.length});
-            return add_scalar_value(cbCtx, std::move(data));
-        }
-        case Object_key: {
-            if (cbCtx->stack.begin() == cbCtx->stack.end()) {
-                return false;   // this should be possible only if there is a bug in this function or in the parser
-            }
-
-            JsonValue& obj = cbCtx->stack.back();
-
-            if (obj.type != obj.OBJECT) {
-                return false;   // this should be possible only if there is a bug in this function or in the parser
-            }
-
-            obj.object().push_back(JsonObjectField(std::string(value.string, value.length), JsonValue()));
-            break;
-        }
-        default:
-            return false;
-        }
-    }
-    catch (std::exception& ) {
-        return false;
-    }
+		obj.object().push_back(JsonObjectField(std::string(value.string, value.length), JsonValue()));
+		break;
+	}
+	default:
+		return false;
+	}
 
     return true;
 }

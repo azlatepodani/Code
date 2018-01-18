@@ -97,7 +97,7 @@ struct freelist_alloc_t {
 	block_t alloc(size_t n) {
 		if (n == size && _head) {
 			block_t b = {_head, size};
-			_head = _head.next;
+			_head = _head->next;
 			return b;
 		}
 		
@@ -106,7 +106,7 @@ struct freelist_alloc_t {
 	
 	void free(block_t b) {
 		if (b.size == size) {
-			node_t* node = (node_t*)b.ptr;
+			node_t* node = (node_t*)b.p;
 			node->next = _head;
 			_head = node;
 		}

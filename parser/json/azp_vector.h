@@ -184,7 +184,7 @@ vector<T, Allocator>::~vector() {
 		it->~T();
 	}
 	
-	_a.free({_start, capacity()});
+	_a.free({_start, capacity() * sizeof(T)});
 }
 
 	
