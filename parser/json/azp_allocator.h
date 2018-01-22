@@ -49,7 +49,11 @@ struct monotonic_alloc_t {
 			block_t b{_buffer, n};
 			_buffer = advance(_buffer, n);
 			_size -= n;
+			
+			return b;
 		}
+		
+		return {nullptr,0};
 	}
 	
 	void free(block_t b) {

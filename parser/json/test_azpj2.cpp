@@ -50,7 +50,7 @@ std::string writeJson(const JsonValue& root) {
 
 
 template <typename Fn>
-void benchmark(int size, char * desc, Fn alg)
+void benchmark(int size, const char * desc, Fn alg)
 {
 	long long time = 0;
 	LARGE_INTEGER li, li2, freq;
@@ -75,7 +75,7 @@ void benchmark(int size, char * desc, Fn alg)
 }
 
 template <typename Fn>
-void benchmark(char * desc, Fn alg)
+void benchmark(const char * desc, Fn alg)
 {
 	benchmark(0, desc, alg);
 }

@@ -253,39 +253,39 @@ JsonValue::~JsonValue() {
 
 void json_writer(std::string& stm, const JsonValue& val) {
 	switch (val.type) {
-		case val.OBJECT:
+		case JsonValue::OBJECT:
 			json_writer_object(stm, val.object());
 			break;
 
-		case val.ARRAY:
+		case JsonValue::ARRAY:
 			json_writer_array(stm, val.array());
 			break;
 			
-		case val.STRING:
+		case JsonValue::STRING:
 			stm.push_back('"');
 			stm.append(jsonEscape(val.string()));
 			stm.push_back('"');
 			break;
 			
-		case val.STRING_VIEW:
+		case JsonValue::STRING_VIEW:
 			stm.push_back('"');
 			stm.append(jsonEscape(std::string(val.u.view.str, val.u.view.len)));
 			stm.push_back('"');
 			break;
 			
-		case val.NUMBER:
+		case JsonValue::NUMBER:
 			stm.append(std::to_string(val.u.number));
 			break;
 			
-		case val.FLOAT_NUM:
+		case JsonValue::FLOAT_NUM:
 			stm.append(double_to_string(val.u.float_num));
 			break;
 			
-		case val.BOOL_TRUE:
+		case JsonValue::BOOL_TRUE:
 			stm.append("true");
 			break;
 			
-		case val.BOOL_FALSE:
+		case JsonValue::BOOL_FALSE:
 		    stm.append("false");
 			break;
 			
@@ -304,7 +304,7 @@ JsonValue& json_get_child(JsonValue& val, const std::string& path) {
 	do {
 		presult = json_get_immediate_child(presult, path.substr(start, pos-start));
         if (presult == nullptr) {
-            throw std::exception((__FUNCTION__ " not found: " + path).c_str());
+            throw std::exception((__FUNCTION__ + (" not found: " + path)).c_str());
         }
 
 		if (pos == path.npos) break;
@@ -349,7 +349,7 @@ JsonValue& json_put_child(JsonValue& val, const std::string& path, JsonValue chi
         parent = json_build_parent_chain(&val, path.substr(0, pos));
     }
     else {
-        if (val.type != val.OBJECT) {
+        if (val.type != JsonValue::OBJECT) {
             val = JsonValue(JsonObject());
         }
     }
@@ -680,39 +680,39 @@ static void append(vector<char>& out, const std::string& s) {
 
 static void json_writer(vector<char>& out, const JsonValue& val) {
 	switch (val.type) {
-		case val.OBJECT:
+		case JsonValue::OBJECT:
 			json_writer_object(out, val.object());
 			break;
 
-		case val.ARRAY:
+		case JsonValue::ARRAY:
 			json_writer_array(out, val.array());
 			break;
 			
-		case val.STRING:
+		case JsonValue::STRING:
 			out.push_back('"');
 			jsonEscape(out, val.string());
 			out.push_back('"');
 			break;
 			
-		case val.STRING_VIEW:
+		case JsonValue::STRING_VIEW:
 			out.push_back('"');
 			jsonEscape(out, val.u.view.str, val.u.view.len);
 			out.push_back('"');
 			break;
 			
-		case val.NUMBER:
+		case JsonValue::NUMBER:
 			append(out, std::to_string(val.u.number));
 			break;
 			
-		case val.FLOAT_NUM:
+		case JsonValue::FLOAT_NUM:
 			append(out, double_to_string(val.u.float_num));
 			break;
 			
-		case val.BOOL_TRUE:
+		case JsonValue::BOOL_TRUE:
 			append(out, "true");
 			break;
 			
-		case val.BOOL_FALSE:
+		case JsonValue::BOOL_FALSE:
 		    append(out, "false");
 			break;
 			
@@ -752,7 +752,7 @@ static JsonValue* json_get_immediate_child(JsonValue* val, const std::string& ip
 		return nullptr;
 	}
 	else {
-		throw std::exception((__FUNCTION__ " not implemented: " + ipath).c_str());
+		throw std::exception((__FUNCTION__ + (" not implemented: " + ipath)).c_str());
 	}
 }
 
@@ -813,10 +813,10 @@ template <typename Allocator>
 static int add_scalar_value(parser_callback_ctx_t<Allocator>& cbCtx, JsonValue&& data) {
     JsonValue& val = cbCtx.stack.back();
 
-    if (val.type == val.OBJECT) {
+    if (val.type == JsonValue::OBJECT) {
         val.object().back().value = std::move(data);
     }
-    else if (val.type == val.ARRAY) {
+    else if (val.type == JsonValue::ARRAY) {
         val.array().push_back(std::move(data));
     }
     else {
@@ -888,8 +888,8 @@ static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val
 
 
 long long json_to_number(const JsonValue& val) {
-    if (val.type == val.NUMBER) return val.u.number;
-    if (val.type == val.STRING) {
+    if (val.type == JsonValue::NUMBER) return val.u.number;
+    if (val.type == JsonValue::STRING) {
         return string_to_longlong(val.string());
     }
 
@@ -905,9 +905,9 @@ long long json_to_number(const JsonValue& val) {
 
 
 bool json_to_bool(const JsonValue& val) {
-    if (val.type == val.BOOL_FALSE) return false;
-    if (val.type == val.BOOL_TRUE) return true;
-    if (val.type == val.STRING) {
+    if (val.type == JsonValue::BOOL_FALSE) return false;
+    if (val.type == JsonValue::BOOL_TRUE) return true;
+    if (val.type == JsonValue::STRING) {
         return val.string() == "true";
     }
 
@@ -922,11 +922,11 @@ bool json_to_bool(const JsonValue& val) {
 
 
 std::string json_to_string(const JsonValue& val) {
-    if (val.type == val.STRING) {
+    if (val.type == JsonValue::STRING) {
         return val.string();
     }
 
-    if (val.type == val.NUMBER) {
+    if (val.type == JsonValue::NUMBER) {
         return longlong_to_string(val.u.number);
     }
     
@@ -942,8 +942,8 @@ std::string json_to_string(const JsonValue& val) {
 
 
 double json_to_float(const JsonValue& val) {
-    if (val.type == val.FLOAT_NUM) return val.u.float_num;
-    if (val.type == val.STRING) {
+    if (val.type == JsonValue::FLOAT_NUM) return val.u.float_num;
+    if (val.type == JsonValue::STRING) {
         return string_to_double(val.string());
     }
 

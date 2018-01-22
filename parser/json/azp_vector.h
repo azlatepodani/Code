@@ -119,7 +119,7 @@ vector<T, Allocator>::vector(vector<T, Allocator>&& other)
 	: _start(other._start)
 	, _end(other._end)
 	, _max(other._max)
-	, _a(std::move(other._a))
+	, _a(other._a)
 {
 	other._start = 0;
 	other._end = 0;
@@ -134,7 +134,6 @@ vector<T, Allocator>& vector<T, Allocator>::operator=(vector<T, Allocator>&& oth
 	std::swap(tmp._start, _start);
 	std::swap(tmp._end, _end);
 	std::swap(tmp._max, _max);
-	std::swap(tmp._a, _a);
 	return *this;
 }
 
