@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <float.h>
+#include <exception>
+#include <stdio.h>
 #include "azp_json.h"
 #include "azp_json_api.h"
 
@@ -422,7 +424,7 @@ std::pair<JsonValue, std::string> json_reader(const std::string& stm) {
     ctx.result = &val.first;
 	val.second = stm;
 	
-	if (!parseJson(p, &val.second[0], &val.second[0]+val.second.size())) throw std::exception("cannot parse");
+	if (!parseJson(p, &val.second[0], &val.second[0]+val.second.size())) throw std::exception(/*"cannot parse"*/);
 	
 	return val;
 }
@@ -591,13 +593,13 @@ static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val
 			return add_scalar_value(cbCtx, JsonValue(false));
 
 		case String_val: {
-			JsonValue data(string_view_t{value.string, value.length});
+			JsonValue data(string_view_t{value.string.p, value.string.len});
 			return add_scalar_value(cbCtx, std::move(data));
 		}
 		case Object_key: {
 			JsonValue& obj = cbCtx.stack.back();
 
-			obj.object().push_back(JsonObjectField(std::string(value.string, value.length), JsonValue()));
+			obj.object().push_back(JsonObjectField(std::string(value.string.p, value.string.len), JsonValue()));
 			break;
 		}
 		default:
@@ -640,7 +642,7 @@ static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val
 			break;
 
 		case String_val: {
-			*cbCtx.result = JsonValue(string_view_t{value.string, value.length});
+			*cbCtx.result = JsonValue(string_view_t{value.string.p, value.string.len});
 			break;
 		}
 		default: return false;
@@ -651,25 +653,26 @@ static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val
 }
 
 
-struct C_Numeric_Locale {
-    _locale_t loc;
+// struct C_Numeric_Locale {
+    // _locale_t loc;
 
-    C_Numeric_Locale() : loc(_create_locale(LC_NUMERIC, "C"))
-    {
-        if (loc == nullptr) throw std::exception("cannot create the locale");
-    }
+    // C_Numeric_Locale() : loc(_create_locale(LC_NUMERIC, "C"))
+    // {
+        // if (loc == nullptr) throw std::exception("cannot create the locale");
+    // }
 
-    ~C_Numeric_Locale() {
-        _free_locale(loc);
-    }
+    // ~C_Numeric_Locale() {
+        // _free_locale(loc);
+    // }
 
-    operator _locale_t() { return loc; }
-} g_loc;
+    // operator _locale_t() { return loc; }
+// } g_loc;
 
 
 static std::string double_to_string(double dbl) {
-    char buf[64] = { 0, };
-    auto len = _sprintf_s_l(buf, sizeof(buf), "%.*g", g_loc, DBL_DECIMAL_DIG, dbl);
+    char buf[340] = { 0, };
+	//auto old = setlocale(LC_NUMERIC, "C"); // The C locale is set by the parser
+    auto len = sprintf(buf, "%.*g", DBL_DECIMAL_DIG, dbl);
 
     return std::string(buf, buf+len);
 }

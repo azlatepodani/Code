@@ -39,10 +39,10 @@ enum ParserErrors {
 union value_t {
 	long long integer;
 	double number;
-	struct {
-		const char* string;	// this pointer is not valid after the callback returns
-		size_t length;
-	};
+	struct _s_t {
+		const char* p;	// this pointer is not valid after the callback returns
+		size_t len;
+	} string;
 };
 
 //

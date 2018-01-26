@@ -4,6 +4,9 @@
 #include <assert.h>
 #include "azp_vector.h"
 
+#ifndef _NOEXCEPT
+#define _NOEXCEPT noexcept
+#endif
 
 namespace azp {
 

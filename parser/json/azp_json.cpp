@@ -1,5 +1,8 @@
 #include <stdlib.h>
 #include <locale.h>
+#include <cmath>
+#include <climits>
+#include <string.h>
 #include "azp_json.h"
 #include <memory>
 
@@ -230,8 +233,8 @@ static bool call_string_callback(parser_base_t& p, char* start, char * end,
 								 ParserTypes report_type)
 {
 	value_t val;
-	val.string = start;
-	val.length = end-start;
+	val.string.p = start;
+	val.string.len = end-start;
 	return wrap_user_callback(report_type, val, start);
 }
 
