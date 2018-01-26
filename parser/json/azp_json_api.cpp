@@ -307,227 +307,77 @@ void json_writer(std::string& stm, const JsonValue& val) {
 }
 
 
-// static size_t number_size(long num) {
-	// static const struct num_size_t {
-		// long val;
-		// size_t size;
-	// } tab[] = {
-		// { 10, 1 },
-		// { 100, 2 },
-		// { 1000, 3 },
-		// { 10000, 4 },
-		// { 100000, 5 },
-		// { 1000000, 6 },
-		// { 10000000, 7 },
-		// { 100000000, 8 },
-		// { 1000000000, 9 },
-	// };
+static size_t number_size(long num) {
+	static const struct num_size_t {
+		long val;
+		size_t size;
+	} tab[] = {
+		{ 10, 1 },
+		{ 100, 2 },
+		{ 1000, 3 },
+		{ 10000, 4 },
+		{ 100000, 5 },
+		{ 1000000, 6 },
+		{ 10000000, 7 },
+		{ 100000000, 8 },
+		{ 1000000000, 9 },
+	};
 	
-	// unsigned long n;
-	// bool negative = 0;
+	unsigned long n;
+	bool negative = 0;
 	
-	// if (num >= 0) n = num;
-	// else {
-		// n = -num;
-		// if (n == 0x80000000UL) return 11;
-		// negative = 1;	// minus sign
-	// }
+	if (num >= 0) n = num;
+	else {
+		n = -num;
+		if (n == 0x80000000UL) return 11;
+		negative = 1;	// minus sign
+	}
 	
-	// auto tabend = tab + sizeof(tab) / sizeof(tab[0]);
-	// auto pos = std::lower_bound(tab, tabend, n, [](const num_size_t& el, unsigned long num)
-	// {
-		// return num >= el.val;
-	// });
+	auto tabend = tab + sizeof(tab) / sizeof(tab[0]);
+	auto pos = std::lower_bound(tab, tabend, n, [](const num_size_t& el, unsigned long num)
+	{
+		return num >= el.val;
+	});
 	
-	// return negative + ((pos != tabend) ? pos->size : 10);
-// }
+	return negative + ((pos != tabend) ? pos->size : 10);
+}
 
-// static size_t number_size(long long num) {
-	// static const struct num_size_t {
-		// long long val;
-		// size_t size;
-	// } tab[] = {
-		// { 10000000000LL, 10 },
-		// { 100000000000LL, 11 },
-		// { 1000000000000LL, 12 },
-		// { 10000000000000LL, 13 },
-		// { 100000000000000LL, 14 },
-		// { 1000000000000000LL, 15 },
-		// { 10000000000000000LL, 16 },
-		// { 100000000000000000LL, 17 },
-		// { 1000000000000000000LL, 18 },		// LLONG_MAX  9,223,372,036,854,775,807LL
-	// };
+static size_t number_size(long long num) {
+	static const struct num_size_t {
+		long long val;
+		size_t size;
+	} tab[] = {
+		{ 10000000000LL, 10 },
+		{ 100000000000LL, 11 },
+		{ 1000000000000LL, 12 },
+		{ 10000000000000LL, 13 },
+		{ 100000000000000LL, 14 },
+		{ 1000000000000000LL, 15 },
+		{ 10000000000000000LL, 16 },
+		{ 100000000000000000LL, 17 },
+		{ 1000000000000000000LL, 18 },		// LLONG_MAX  9,223,372,036,854,775,807LL
+	};
 	
-	// bool negative = 0;
+	bool negative = 0;
 	
-	// unsigned long long n;
-	
-	// if (num >= -2147483647 && num <= 2147483647) return number_size(long(num));
-	
-	// if (num >= 0) n = num;
-	// else {
-		// n = -num;
-		// if (n == 0x8000000000000000ULL) return 20;
-		// negative = 1;
-	// }
-	
-	// auto tabend = tab + sizeof(tab) / sizeof(tab[0]);
-	// auto pos = std::lower_bound(tab, tabend, n, [](const num_size_t& el, unsigned long long num)
-	// {
-		// return num >= el.val;
-	// });
-	
-	// return negative + ((pos != tabend) ? pos->size : 19);
-// }
-
-
-static size_t number_size3(long long num) {
-	size_t size = 0;
 	unsigned long long n;
+	
+	if (num >= -2147483647 && num <= 2147483647) return number_size(long(num));
 	
 	if (num >= 0) n = num;
 	else {
 		n = -num;
 		if (n == 0x8000000000000000ULL) return 20;
-		size = 1;	// minus sign
+		negative = 1;
 	}
 	
-	if (n < 0x100000000) {
-		unsigned long l = (unsigned long)n;
-		
-		for (;;) {
-			if (n < 10) { size += 1; break; }
-			if (n < 100) { size += 2; break; }
-			if (n < 1000) { size += 3; break; }
-			
-			size += 4;
-			if (n < 10000) break;
-			
-			n /= 10000;
-		}
-		
-		return size;
-	}
+	auto tabend = tab + sizeof(tab) / sizeof(tab[0]);
+	auto pos = std::lower_bound(tab, tabend, n, [](const num_size_t& el, unsigned long long num)
+	{
+		return num >= el.val;
+	});
 	
-	for (;;) {
-		if (n < 10) { size += 1; break; }
-		if (n < 100) { size += 2; break; }
-		if (n < 1000) { size += 3; break; }
-		
-		size += 4;
-		if (n < 10000) break;
-		
-		n /= 10000;
-	}
-	
-	return size;
-}
-
-static size_t number_size(long long num) {
-	size_t size = 0;
-	
-	if (num >= 0) {
-		if (num <= 2147483647) {
-			long n = long(num);
-			
-			for (;;) {
-				if (n < 10) { size += 1; break; }
-				if (n < 100) { size += 2; break; }
-				if (n < 1000) { size += 3; break; }
-				
-				size += 4;
-				if (n < 10000) break;
-				
-				n /= 10000;
-			}
-			
-			return size;
-		}
-		
-		for (;;) {
-			if (num < 10) { size += 1; break; }
-			if (num < 100) { size += 2; break; }
-			if (num < 1000) { size += 3; break; }
-			
-			size += 4;
-			if (num < 10000) break;
-			
-			num /= 10000;
-		}
-	}
-	else {
-		size = 1;	// minus sign
-		
-		if (num >= -2147483648) {
-			long n = long(num);
-			
-			for (;;) {
-				if (n > -10) { size += 1; break; }
-				if (n > -100) { size += 2; break; }
-				if (n > -1000) { size += 3; break; }
-				
-				size += 4;
-				if (n > -10000) break;
-				
-				n /= 10000;
-			}
-			
-			return size;
-		}
-		
-		for (;;) {
-			if (num > -10) { size += 1; break; }
-			if (num > -100) { size += 2; break; }
-			if (num > -1000) { size += 3; break; }
-			
-			size += 4;
-			if (num > -10000) break;
-			
-			num /= 10000;
-		}
-	}
-	
-	return size;
-}
-
-
-static char* to_string(long long number, size_t size, char* first) {
-	static const long long tab[] = {
-		0,	//	size starts at 1
-		1,
-		100,
-		1000,
-		10000,
-		100000,
-		1000000,
-		10000000,
-		100000000,
-		1000000000,
-		10000000000LL,
-		100000000000LL,
-		1000000000000LL,
-		10000000000000LL,
-		100000000000000LL,
-		1000000000000000LL,
-		10000000000000000LL,
-		100000000000000000LL,
-		1000000000000000000LL,
-		0 // unreachable
-	};
-	
-	if (number < 0) {
-		*first++ = '-';
-		size--;
-	}
-	
-	for (; size != 0; --size) {
-		lldiv_t r = div(number, tab[size]);
-		
-		*first++ = '0' + (char)r.quot;
-		number = r.rem;
-	}
-	
-	return first;
+	return negative + ((pos != tabend) ? pos->size : 19);
 }
 
 
@@ -648,124 +498,6 @@ JsonValue& json_get_child(JsonValue& val, const std::string& path, JsonValue& de
 
 	return *presult;
 }
-
-/*
-JsonValue& json_put_child(JsonValue& val, const std::string& path, JsonValue child) {
-    size_t pos = path.rfind('.');
-    JsonValue* parent = &val;
-
-    if (pos != path.npos) {
-        parent = json_build_parent_chain(&val, path.substr(0, pos));
-    }
-    else {
-        if (val.type != JsonValue::OBJECT) {
-            val = JsonValue(JsonObject());
-        }
-    }
-
-    auto name = path.substr(pos+1);
-    JsonValue * ptr = json_get_immediate_child(parent, name);
-    if (ptr == nullptr) {
-        // add a new entry
-        auto& obj = parent->object();
-        obj.push_back(JsonObjectField(name, std::move(child)));
-        return obj.back().value;
-    }
-    else {
-        // replace the old entry
-        *ptr = child;
-        return *ptr;
-    }
-}
-
-
-JsonValue json_remove_child(JsonValue& val, const std::string& path) {
-    JsonValue* presult = &val;
-	
-	size_t start = 0;
-	size_t pos = path.find('.', 0);
-	
-	do {
-        if (pos != path.npos) {
-		    presult = json_get_immediate_child(presult, path.substr(start, pos-start));
-            if (presult == nullptr) {
-                return JsonValue();
-            }
-        }
-        else {
-            if (presult->type != JsonValue::OBJECT) {
-                return JsonValue();
-            }
-
-            std::string name = path.substr(start);
-            auto it = std::find_if(presult->object().begin(), presult->object().end(), [&](JsonObjectField& f) {
-                return f.name == name;
-            });
-
-            if (it != presult->object().end()) {
-                JsonValue tmp(std::move(it->value));
-                presult->object().erase(it);
-                return std::move(tmp);
-            }
-
-            return JsonValue();
-        }
-
-		start = pos + 1;
-		pos = path.find('.', start);
-	}
-	while (true);
-
-	return JsonValue();
-}
-*/
-
-// void json_reader(std::istream & stm, JsonValue & val) {
-    // JSON_config config = {0};
-
-    // init_JSON_config(&config);
-
-    // parser_callback_ctx_t  ctx;
-    // config.callback = &parser_callback;
-    // config.callback_ctx = &ctx;
-    // config.depth = 30;
-
-    // ctx.result = &val;
-
-    // JSON_parser parser = new_JSON_parser(&config);
-    // if (parser == nullptr) {
-        // throw std::bad_alloc();
-    // }
-
-    // std::unique_ptr<JSON_parser_struct, call_delete_JSON_parser> onExit(parser);
-
-    // char buf[4096] = {0,};
-    // std::streamsize avail = 0;
-    // BOOL valid = TRUE;
-    // JSON_error parseError = JSON_E_NONE;
-
-    // do {
-        // stm.read(buf, sizeof(buf));
-
-        // avail = stm.gcount();
-        // if (avail == 0) break;
-
-        // for (std::streamsize i=0; i<avail; i++) {
-            // valid = JSON_parser_char(parser, (unsigned char)buf[i]);
-            // if (!valid) {
-                // parseError = (JSON_error)JSON_parser_get_last_error(parser);
-                // throw ParserError(parseError, buf, sizeof(buf), (size_t)i);
-            // }
-        // }
-    // }
-    // while (!stm.fail());
-
-    // valid = JSON_parser_done(parser);
-    // if (!valid) {
-        // parseError = (JSON_error)JSON_parser_get_last_error(parser);
-        // throw ParserError(parseError, buf, sizeof(buf), sizeof(buf));
-    // }
-// }
 
 
 std::pair<JsonValue, std::string> json_reader(const std::string& stm) {
@@ -1008,13 +740,7 @@ static void json_writer(vector<char>& out, const JsonValue& val) {
 			jsonEscape(out, val.u.view.str, val.u.view.len);
 			out.push_back('"');
 			break;
-		/*	
-		case JsonValue::NUMBER: {
-			size_t size = number_size(val.u.number);
-			out.resize(out.size() + size);
-			auto* ptr = &out.back() - size;
-			to_string(val.u.number, size, ptr);
-			break; }*/
+
 		case JsonValue::NUMBER:
 			append(out, std::to_string(val.u.number));
 			break;
@@ -1072,58 +798,6 @@ static JsonValue* json_get_immediate_child(JsonValue* val, const std::string& ip
 	}
 }
 
-
-/*static JsonValue* json_append_object_to_object(JsonValue* presult, std::string name, Allocator& a) {
-    presult->object().push_back(JsonObjectField(name, JsonValue(JsonObject(a))));
-    return &presult->object().back().value;
-}
-
-
-static JsonValue* json_build_parent_chain(JsonValue* val, const JsonString& path) {
-    JsonValue* presult = val;
-
-	size_t start = 0;
-	size_t pos = path.find('.', 0);
-	
-	do {
-        JsonValue* last = presult;
-
-		presult = json_get_immediate_child(presult, path.substr(start, pos-start));
-        if (presult == nullptr) {
-            presult = last;
-            break;
-        }
-
-		if (pos == path.npos) {
-            if (presult->type != JsonValue::OBJECT) {
-                // convert this entry to an object
-                *presult = JsonValue(JsonObject());
-            }
-
-            return presult;
-        }
-		
-		start = pos + 1;
-		pos = path.find('.', start);
-	}
-	while (true);
-
-    if (presult->type != JsonValue::OBJECT) {
-        // convert this entry to an object
-        *presult = JsonValue(JsonObject());
-    }
-
-    do {
-        presult = json_append_object_to_object(presult, path.substr(start, pos-start));
-        if (pos == path.npos) {
-            return presult;
-        }
-
-        start = pos + 1;
-		pos = path.find('.', start);
-    }
-    while (true);
-}*/
 
 template <typename Allocator>
 static int add_scalar_value(parser_callback_ctx_t<Allocator>& cbCtx, JsonValue&& data) {
@@ -1203,77 +877,6 @@ static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val
 }
 
 
-long long json_to_number(const JsonValue& val) {
-    if (val.type == JsonValue::NUMBER) return val.u.number;
-    if (val.type == JsonValue::STRING) {
-        return string_to_longlong(val.string());
-    }
-
-    switch (val.type) {
-    case JsonValue::BOOL_FALSE:
-    case JsonValue::EMPTY: return 0LL;
-    case JsonValue::FLOAT_NUM: return (long long)(val.u.float_num + 0.5); // round
-    case JsonValue::BOOL_TRUE: return 1LL;
-    default:
-        throw std::exception("bad conversion");
-    }
-}
-
-
-bool json_to_bool(const JsonValue& val) {
-    if (val.type == JsonValue::BOOL_FALSE) return false;
-    if (val.type == JsonValue::BOOL_TRUE) return true;
-    if (val.type == JsonValue::STRING) {
-        return val.string() == "true";
-    }
-
-    switch (val.type) {
-    case JsonValue::NUMBER: return val.u.number != 0LL;
-    case JsonValue::EMPTY: return 0LL;
-    case JsonValue::FLOAT_NUM: return val.u.float_num != 0.;
-    default:
-        throw std::exception("bad conversion");
-    }
-}
-
-
-std::string json_to_string(const JsonValue& val) {
-    if (val.type == JsonValue::STRING) {
-        return val.string();
-    }
-
-    if (val.type == JsonValue::NUMBER) {
-        return longlong_to_string(val.u.number);
-    }
-    
-    switch (val.type) {
-    case JsonValue::EMPTY: return "null";
-    case JsonValue::FLOAT_NUM: return double_to_string(val.u.float_num);
-    case JsonValue::BOOL_FALSE: return "false";
-    case JsonValue::BOOL_TRUE: return "true";
-    default:
-        throw std::exception("bad conversion");
-    }
-}
-
-
-double json_to_float(const JsonValue& val) {
-    if (val.type == JsonValue::FLOAT_NUM) return val.u.float_num;
-    if (val.type == JsonValue::STRING) {
-        return string_to_double(val.string());
-    }
-
-    switch (val.type) {
-    case JsonValue::NUMBER: return (double)val.u.number;
-    case JsonValue::BOOL_FALSE:
-    case JsonValue::EMPTY: return 0.;
-    case JsonValue::BOOL_TRUE: return 1.;
-    default:
-        throw std::exception("bad conversion");
-    }
-}
-
-
 struct C_Numeric_Locale {
     _locale_t loc;
 
@@ -1293,28 +896,6 @@ struct C_Numeric_Locale {
 static std::string double_to_string(double dbl) {
     char buf[64] = { 0, };
     auto len = _sprintf_s_l(buf, sizeof(buf), "%.*g", g_loc, DBL_DECIMAL_DIG, dbl);
-
-    return std::string(buf, buf+len);
-}
-
-
-static double string_to_double(const std::string& s) {
-    double dbl = 0;
-    _snscanf_s_l(s.c_str(), s.size(), "%lg", g_loc, &dbl);
-    return dbl;
-}
-
-
-static long long string_to_longlong(const std::string& s) {
-    long long num = 0;
-    _snscanf_s_l(s.c_str(), s.size(), "%lld", g_loc, &num);
-    return num;
-}
-
-
-static std::string longlong_to_string(long long num) {
-    char buf[64] = { 0, };
-    auto len = _sprintf_s_l(buf, sizeof(buf), "%lld", g_loc, num);
 
     return std::string(buf, buf+len);
 }
