@@ -4,6 +4,7 @@
 #include <float.h>
 #include "azp_json.h"
 #include <memory>
+#include <stdlib.h>
 
 
 #ifndef  DBL_DECIMAL_DIG
@@ -306,86 +307,88 @@ void json_writer(std::string& stm, const JsonValue& val) {
 }
 
 
-static size_t number_size1(long num) {
-	static struct num_size_t {
-		long val;
-		size_t size;
-	} tab[] = {
-		{ -999999999, 11 },
-		{ -99999999, 10 },
-		{ -9999999, 9 },
-		{ -999999, 8 },
-		{ -99999, 7 },
-		{ -9999, 6 },
-		{ -999, 5 },
-		{ -99, 4 },
-		{ -9, 3 },
-		{ 0, 2 },
-		{ 10, 1 },
-		{ 100, 2 },
-		{ 1000, 3 },
-		{ 10000, 4 },
-		{ 100000, 5 },
-		{ 1000000, 6 },
-		{ 10000000, 7 },
-		{ 100000000, 8 },
-		{ 1000000000, 9 },
-	};
+// static size_t number_size(long num) {
+	// static const struct num_size_t {
+		// long val;
+		// size_t size;
+	// } tab[] = {
+		// { 10, 1 },
+		// { 100, 2 },
+		// { 1000, 3 },
+		// { 10000, 4 },
+		// { 100000, 5 },
+		// { 1000000, 6 },
+		// { 10000000, 7 },
+		// { 100000000, 8 },
+		// { 1000000000, 9 },
+	// };
 	
-	auto tabend = tab + sizeof(tab) / sizeof(tab[0]);
-	auto pos = std::lower_bound(tab, tabend, num, [](const num_size_t& el, long num)
-	{
-		return num >= el.val;
-	});
+	// unsigned long n;
+	// bool negative = 0;
 	
-	return (pos != tabend) ? pos->size : 10;
-}
+	// if (num >= 0) n = num;
+	// else {
+		// n = -num;
+		// if (n == 0x80000000UL) return 11;
+		// negative = 1;	// minus sign
+	// }
+	
+	// auto tabend = tab + sizeof(tab) / sizeof(tab[0]);
+	// auto pos = std::lower_bound(tab, tabend, n, [](const num_size_t& el, unsigned long num)
+	// {
+		// return num >= el.val;
+	// });
+	
+	// return negative + ((pos != tabend) ? pos->size : 10);
+// }
 
-static size_t number_size1(long long num) {
-	static struct num_size_t {
-		long long val;
-		size_t size;
-	} tab[] = {
-		{ -999999999999999999LL, 20 },		// LLONG_MIN  -9,223,372,936,854,775,898LL
-		{ -99999999999999999LL, 19 },
-		{ -9999999999999999LL, 18 },
-		{ -999999999999999LL, 17 },
-		{ -99999999999999LL, 16 },
-		{ -9999999999999LL, 15 },
-		{ -999999999999LL, 14 },
-		{ -99999999999LL, 13 },
-		{ -9999999999LL, 12 },
-		{ 10000000000LL, 10 },
-		{ 100000000000LL, 11 },
-		{ 1000000000000LL, 12 },
-		{ 10000000000000LL, 13 },
-		{ 100000000000000LL, 14 },
-		{ 1000000000000000LL, 15 },
-		{ 10000000000000000LL, 16 },
-		{ 100000000000000000LL, 17 },
-		{ 1000000000000000000LL, 18 },		// LLONG_MAX  9,223,372,036,854,775,807LL
-	};
+// static size_t number_size(long long num) {
+	// static const struct num_size_t {
+		// long long val;
+		// size_t size;
+	// } tab[] = {
+		// { 10000000000LL, 10 },
+		// { 100000000000LL, 11 },
+		// { 1000000000000LL, 12 },
+		// { 10000000000000LL, 13 },
+		// { 100000000000000LL, 14 },
+		// { 1000000000000000LL, 15 },
+		// { 10000000000000000LL, 16 },
+		// { 100000000000000000LL, 17 },
+		// { 1000000000000000000LL, 18 },		// LLONG_MAX  9,223,372,036,854,775,807LL
+	// };
 	
-	if (num >= -2147483647 && num <= 2147483647) return number_size1(long(num));
+	// bool negative = 0;
 	
-	auto tabend = tab + sizeof(tab) / sizeof(tab[0]);
-	auto pos = std::lower_bound(tab, tabend, num, [](const num_size_t& el, long long num)
-	{
-		return num >= el.val;
-	});
+	// unsigned long long n;
 	
-	return (pos != tabend) ? pos->size : 19;
-}
+	// if (num >= -2147483647 && num <= 2147483647) return number_size(long(num));
+	
+	// if (num >= 0) n = num;
+	// else {
+		// n = -num;
+		// if (n == 0x8000000000000000ULL) return 20;
+		// negative = 1;
+	// }
+	
+	// auto tabend = tab + sizeof(tab) / sizeof(tab[0]);
+	// auto pos = std::lower_bound(tab, tabend, n, [](const num_size_t& el, unsigned long long num)
+	// {
+		// return num >= el.val;
+	// });
+	
+	// return negative + ((pos != tabend) ? pos->size : 19);
+// }
 
 
-static size_t number_size2(long long num) {
+static size_t number_size3(long long num) {
 	size_t size = 0;
 	unsigned long long n;
 	
 	if (num >= 0) n = num;
 	else {
 		n = -num;
-		if (n < 0) return 20;
+		if (n == 0x8000000000000000ULL) return 20;
 		size = 1;	// minus sign
 	}
 	
@@ -485,6 +488,46 @@ static size_t number_size(long long num) {
 	}
 	
 	return size;
+}
+
+
+static char* to_string(long long number, size_t size, char* first) {
+	static const long long tab[] = {
+		0,	//	size starts at 1
+		1,
+		100,
+		1000,
+		10000,
+		100000,
+		1000000,
+		10000000,
+		100000000,
+		1000000000,
+		10000000000LL,
+		100000000000LL,
+		1000000000000LL,
+		10000000000000LL,
+		100000000000000LL,
+		1000000000000000LL,
+		10000000000000000LL,
+		100000000000000000LL,
+		1000000000000000000LL,
+		0 // unreachable
+	};
+	
+	if (number < 0) {
+		*first++ = '-';
+		size--;
+	}
+	
+	for (; size != 0; --size) {
+		lldiv_t r = div(number, tab[size]);
+		
+		*first++ = '0' + (char)r.quot;
+		number = r.rem;
+	}
+	
+	return first;
 }
 
 
@@ -965,10 +1008,17 @@ static void json_writer(vector<char>& out, const JsonValue& val) {
 			jsonEscape(out, val.u.view.str, val.u.view.len);
 			out.push_back('"');
 			break;
-			
+		/*	
+		case JsonValue::NUMBER: {
+			size_t size = number_size(val.u.number);
+			out.resize(out.size() + size);
+			auto* ptr = &out.back() - size;
+			to_string(val.u.number, size, ptr);
+			break; }*/
 		case JsonValue::NUMBER:
 			append(out, std::to_string(val.u.number));
 			break;
+
 			
 		case JsonValue::FLOAT_NUM:
 			append(out, double_to_string(val.u.float_num));
