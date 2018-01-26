@@ -1,8 +1,8 @@
 #pragma once
 
 #include <string>
-#include "azp_vector.h"
 #include <assert.h>
+#include "azp_vector.h"
 
 
 namespace azp {
@@ -10,7 +10,6 @@ namespace azp {
 struct JsonObjectField;
 struct JsonValue;
 
-//using alloc_t = freelist_alloc_t<default_alloc_t, 224>;
 using alloc_t = default_alloc_t;
 
 typedef vector<JsonObjectField, alloc_t>  JsonObject;
@@ -40,12 +39,6 @@ struct JsonValue {
 	} type;
 	
 	union Impl {
-		//
-		// VS2012 doesn't allow unions with fields that have copy constructors
-		//
-		//JsonObject  object;
-		//JsonArray   array;
-		//std::string string;
 		char        buf[sizeof(JsonString)];
 		long long  	number;
 		double      float_num;

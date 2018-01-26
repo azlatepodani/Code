@@ -1,14 +1,10 @@
-#include "azp_json_api.h"
-#include <ostream>
 #include <algorithm>
 #include <float.h>
 #include "azp_json.h"
-#include <memory>
-#include <stdlib.h>
+#include "azp_json_api.h"
 
 
 #ifndef  DBL_DECIMAL_DIG
-// This macro is undefined in VS2012
 #define DBL_DECIMAL_DIG 17
 #endif // ! DBL_DECIMAL_DIG
 
@@ -16,26 +12,18 @@
 namespace azp {
 
 
-static std::string jsonEscape(const std::string & src);
+static void jsonEscape(const char* src, size_t len, std::string& dst);
 
 static void json_writer_object(std::string& stm, const JsonObject& val);
 static void json_writer_array(std::string& stm, const JsonArray& val);
 
-static JsonValue* json_build_parent_chain(JsonValue* val, const JsonString& path);
-
-static JsonValue* json_get_immediate_child(JsonValue* val, const std::string& ipath);
-
 static std::string double_to_string(double dbl);
-static double string_to_double(const std::string& s);
-static long long string_to_longlong(const std::string& s);
-static std::string longlong_to_string(long long num);
-
-static void json_writer(vector<char>& out, const JsonValue& val);
 
 
 template <typename Allocator>
 struct parser_callback_ctx_t {
-	parser_callback_ctx_t(Allocator& a) : stack(a), a(a) { }
+	parser_callback_ctx_t(Allocator& a) : stack(a), a(a), firstCall(1), result(0) { }
+	bool firstCall;
     vector<JsonValue, Allocator> stack;
     JsonValue * result;
 	Allocator& a;
@@ -44,44 +32,6 @@ struct parser_callback_ctx_t {
 
 template <typename Allocator>
 static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val) _NOEXCEPT;
-
-
-bool operator==(const JsonValue& left, const JsonValue& right) {
-	if (left.type == right.type) {
-		switch (left.type) {
-			case JsonValue::OBJECT:
-				return left.object() == right.object();
-
-			case JsonValue::ARRAY:
-				return left.array() == right.array();
-				
-			case JsonValue::STRING:
-				return left.string() == right.string();
-				
-			case JsonValue::STRING_VIEW:
-				return left.u.view.len == right.u.view.len &&
-					strncmp(left.u.view.str, right.u.view.str, left.u.view.len) == 0;
-				
-			case JsonValue::NUMBER:
-				return left.u.number == right.u.number;
-				
-			case JsonValue::FLOAT_NUM:
-				return left.u.float_num == right.u.float_num;
-				
-			case JsonValue::BOOL_TRUE:
-			case JsonValue::BOOL_FALSE:
-			default: // case EMPTY:
-				return true;
-		}
-	}
-	
-	return false;
-}
-
-
-bool operator==(const JsonObjectField& left, const JsonObjectField& right) {
-	return (left.name == right.name) && (left.value == right.value);
-}
 
 
 JsonValue& JsonValue::operator=(const JsonValue& other) {
@@ -252,7 +202,7 @@ JsonValue::~JsonValue() {
 }
 
 
-void json_writer_imp(std::string& stm, const JsonValue& val) {
+static void json_writer_imp(std::string& stm, const JsonValue& val) {
 	switch (val.type) {
 		case JsonValue::OBJECT:
 			json_writer_object(stm, val.object());
@@ -263,14 +213,15 @@ void json_writer_imp(std::string& stm, const JsonValue& val) {
 			break;
 			
 		case JsonValue::STRING:
-			stm.push_back('"');
-			stm.append(jsonEscape(val.string()));
+			stm.push_back('"');{
+			auto& s = val.string();
+			jsonEscape(s.c_str(), s.size(), stm);}
 			stm.push_back('"');
 			break;
 			
 		case JsonValue::STRING_VIEW:
 			stm.push_back('"');
-			stm.append(jsonEscape(std::string(val.u.view.str, val.u.view.len)));
+			jsonEscape(val.u.view.str, val.u.view.len, stm);
 			stm.push_back('"');
 			break;
 			
@@ -296,7 +247,7 @@ void json_writer_imp(std::string& stm, const JsonValue& val) {
 }
 
 
-size_t json_writer_size(const JsonValue& val);
+static size_t json_writer_size(const JsonValue& val);
 
 
 void json_writer(std::string& stm, const JsonValue& val) {
@@ -438,7 +389,8 @@ static size_t json_writer_size(const JsonValue& val) {
 			break;
 			
 		case JsonValue::FLOAT_NUM:
-			size = double_to_string(val.u.float_num).size();
+			//size = double_to_string_size(val.u.float_num);	// more expensive than potentially doing an allocation
+			size = 15;	// any number that cannot be exactly represented will require at least 19 chars
 			break;
 			
 		case JsonValue::BOOL_FALSE:
@@ -450,53 +402,6 @@ static size_t json_writer_size(const JsonValue& val) {
 	}
 	
 	return size;
-}
-
-
-
-JsonValue& json_get_child(JsonValue& val, const std::string& path) {
-	JsonValue* presult = &val;
-	
-	size_t start = 0;
-	size_t pos = path.find('.', 0);
-	
-	do {
-		presult = json_get_immediate_child(presult, path.substr(start, pos-start));
-        if (presult == nullptr) {
-            throw std::exception((__FUNCTION__ + (" not found: " + path)).c_str());
-        }
-
-		if (pos == path.npos) break;
-		
-		start = pos + 1;
-		pos = path.find('.', start);
-	}
-	while (true);
-
-	return *presult;
-}
-
-
-JsonValue& json_get_child(JsonValue& val, const std::string& path, JsonValue& defVal) {
-	JsonValue* presult = &val;
-	
-	size_t start = 0;
-	size_t pos = path.find('.', 0);
-	
-	do {
-		presult = json_get_immediate_child(presult, path.substr(start, pos-start));
-        if (presult == nullptr) {
-            return defVal;
-        }
-
-		if (pos == path.npos) break;
-		
-		start = pos + 1;
-		pos = path.find('.', start);
-	}
-	while (true);
-
-	return *presult;
 }
 
 
@@ -532,7 +437,6 @@ static bool needEscape(char ch)
     switch (ch) {
         case '"':
         case '\\':
-        case '/':
             return true;
 
         default:
@@ -561,75 +465,31 @@ static const char * escape(char ch)
         return esctab[ch];
     }
 
-    if (ch == '/')  return "\\/";
-
     return "";
 }
 
-static void escape(vector<char>& out, char ch)
+
+static void jsonEscape(const char* src, size_t len, std::string& dst)
 {
-	if ((ch == '"') | (ch == '\\') | (ch == '/')) {
-		out.push_back('\\');
-		out.push_back(ch);
-		return;
-	}
-	else {
-		if (unsigned(ch) < 0x20) {
-			auto str = esctab[ch];
-			while (*str) out.push_back(*str++);
-			return;
-		}
-	}
-
-    out.push_back(ch);
-}
-
-
-
-static std::string jsonEscape(const std::string & src)
-{
-    std::string res;
-    std::string::size_type start = 0;
-    std::string::size_type stop = 0;
+    auto last = src + len;
     
-    while (start < src.length()) {
-        stop = start;
+    while (src != last) {
+        auto stop = src;
 
-        while (!needEscape(src[stop])) {
+        while (!needEscape(*stop)) {
             stop++;
-            if (stop == src.length()) break;
+            if (stop == last) {
+				dst.append(src, stop);
+				return;
+			}
         }
 
-        res.append(&src[start], &src[stop]);
+        dst.append(src, stop);
+        dst.append(escape(*stop));
 
-        if (stop >= src.length()) break;
-
-        res.append(escape(src[stop]));
-
-        start = stop+1;
-    }
-
-    return res;
-}
-
-
-
-static void jsonEscape(vector<char>& out, const char* first, size_t len) {
-	auto last = first + len;
-	
-	out.reserve(out.size() + len);
-	
-    while (first != last) {
-        escape(out, *first++);
+        src = stop+1;
     }
 }
-
-
-static void jsonEscape(vector<char>& out, const std::string& src)
-{
-	jsonEscape(out, src.c_str(), src.size());
-}
-
 
 
 static void json_writer_object(std::string& stm, const JsonObject& val) {
@@ -638,14 +498,14 @@ static void json_writer_object(std::string& stm, const JsonObject& val) {
 	if (val.cbegin() != val.cend()) {
 		auto it = val.cbegin();
 		stm.push_back('"');
-		stm.append(jsonEscape(it->name));
+		jsonEscape(it->name.c_str(), it->name.size(), stm);
 		stm.push_back('"');
 		stm.push_back(':');
 		json_writer_imp(stm, it->value);
 		for (++it; it != val.cend(); ++it) {
 			stm.push_back(',');
 			stm.push_back('"');
-			stm.append(jsonEscape(it->name));
+			jsonEscape(it->name.c_str(), it->name.size(), stm);
 			stm.push_back('"');
 			stm.push_back(':');
 			json_writer_imp(stm, it->value);
@@ -654,31 +514,6 @@ static void json_writer_object(std::string& stm, const JsonObject& val) {
 	
 	stm.push_back('}');
 }
-
-
-static void json_writer_object(vector<char>& out, const JsonObject& val) {
-	out.push_back('{');
-	
-	if (val.cbegin() != val.cend()) {
-		auto it = val.cbegin();
-		out.push_back('"');
-		jsonEscape(out, it->name);
-		out.push_back('"');
-		out.push_back(':');
-		json_writer(out, it->value);
-		for (++it; it != val.cend(); ++it) {
-			out.push_back(',');
-			out.push_back('"');
-			jsonEscape(out, it->name);
-			out.push_back('"');
-			out.push_back(':');
-			json_writer(out, it->value);
-		}
-	}
-	
-	out.push_back('}');
-}
-
 
 
 static void json_writer_array(std::string& stm, const JsonArray& val) {
@@ -695,110 +530,6 @@ static void json_writer_array(std::string& stm, const JsonArray& val) {
 }
 
 
-static void json_writer_array(vector<char>& out, const JsonArray& val) {
-	out.push_back('[');
-	if (val.cbegin() != val.cend()) {
-		auto it = val.cbegin();
-		json_writer(out, *it);
-		for (++it; it != val.cend(); ++it) {
-			out.push_back(',');
-			json_writer(out, *it);
-		}
-	}
-	out.push_back(']');
-}
-
-
-static void append(vector<char>& out, const std::string& s) {
-	auto remaining = s.size();
-	out.reserve(out.size() + s.size());
-	auto first = s.c_str();
-	while (remaining--) {
-		out.push_back(*first++);
-	}
-}
-
-
-static void json_writer(vector<char>& out, const JsonValue& val) {
-	switch (val.type) {
-		case JsonValue::OBJECT:
-			json_writer_object(out, val.object());
-			break;
-
-		case JsonValue::ARRAY:
-			json_writer_array(out, val.array());
-			break;
-			
-		case JsonValue::STRING:
-			out.push_back('"');
-			jsonEscape(out, val.string());
-			out.push_back('"');
-			break;
-			
-		case JsonValue::STRING_VIEW:
-			out.push_back('"');
-			jsonEscape(out, val.u.view.str, val.u.view.len);
-			out.push_back('"');
-			break;
-
-		case JsonValue::NUMBER:
-			append(out, std::to_string(val.u.number));
-			break;
-
-			
-		case JsonValue::FLOAT_NUM:
-			append(out, double_to_string(val.u.float_num));
-			break;
-			
-		case JsonValue::BOOL_TRUE:
-			append(out, "true");
-			break;
-			
-		case JsonValue::BOOL_FALSE:
-		    append(out, "false");
-			break;
-			
-		default: // case EMPTY:
-			append(out, "null");
-	}
-}
-
-
-void json_writer3(std::string& stm, const JsonValue& val) {
-	default_alloc_t a;
-	vector<char> out(a, 128);
-	json_writer(out, val);
-	stm.assign(out.begin(), out.end());
-}
-
-
-
-static JsonValue* json_get_immediate_child(JsonValue* val, const std::string& ipath) {
-    auto type = val->type;
-	if (type != val->OBJECT && type != val->ARRAY) {
-		return nullptr;
-	}
-	
-	if (ipath[0] != '[') {	// not looking for nth element
-		if (type != val->OBJECT)  {	// only objects can be accessed by name
-			return nullptr;
-		}
-		
-        auto& obj = val->object();
-		for (auto& el : obj) {
-			if (el.name == ipath) {
-				return &el.value;
-			}
-		}
-		
-		return nullptr;
-	}
-	else {
-		throw std::exception((__FUNCTION__ + (" not implemented: " + ipath)).c_str());
-	}
-}
-
-
 template <typename Allocator>
 static int add_scalar_value(parser_callback_ctx_t<Allocator>& cbCtx, JsonValue&& data) {
     JsonValue& val = cbCtx.stack.back();
@@ -810,7 +541,6 @@ static int add_scalar_value(parser_callback_ctx_t<Allocator>& cbCtx, JsonValue&&
         val.array().push_back(std::move(data));
     }
     else {
-        //val = std::move(data);
 		return false;
     }
 
@@ -822,55 +552,99 @@ template <typename Allocator>
 static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& value) _NOEXCEPT {
 	auto& cbCtx = *(parser_callback_ctx_t<Allocator> *)ctx;
 	
-	switch (type)
-	{
-	case Array_begin:
-		cbCtx.stack.push_back(JsonValue(JsonArray(cbCtx.a, 4)));
-		break;
-	case Object_begin:
-		cbCtx.stack.push_back(JsonValue(JsonObject(cbCtx.a, 4)));
-		break;
-	case Array_end:
-	case Object_end: {
-		JsonValue obj(std::move(cbCtx.stack.back()));
-		cbCtx.stack.pop_back();
+	if (!cbCtx.firstCall) {
+		switch (type)
+		{
+		case Array_begin:
+			cbCtx.stack.push_back(JsonValue(JsonArray(cbCtx.a, 4)));
+			break;
+		case Object_begin:
+			cbCtx.stack.push_back(JsonValue(JsonObject(cbCtx.a, 4)));
+			break;
+		case Array_end:
+		case Object_end: {
+			JsonValue obj(std::move(cbCtx.stack.back()));
+			cbCtx.stack.pop_back();
 
-		if (cbCtx.stack.begin() != cbCtx.stack.end()) {
-			return add_scalar_value(cbCtx, std::move(obj));
+			if (cbCtx.stack.begin() != cbCtx.stack.end()) {
+				return add_scalar_value(cbCtx, std::move(obj));
+			}
+			else {
+				// we're done
+				*cbCtx.result = std::move(obj);
+			}
+			break;
 		}
-		else {
-			// we're done
-			*cbCtx.result = std::move(obj);
+		case Number_int:
+			return add_scalar_value(cbCtx, JsonValue(value.integer));
+
+		case Number_float:
+			return add_scalar_value(cbCtx, JsonValue(value.number));
+
+		case Null_val:
+			return add_scalar_value(cbCtx, JsonValue());
+
+		case Bool_true:
+			return add_scalar_value(cbCtx, JsonValue(true));
+
+		case Bool_false:
+			return add_scalar_value(cbCtx, JsonValue(false));
+
+		case String_val: {
+			JsonValue data(string_view_t{value.string, value.length});
+			return add_scalar_value(cbCtx, std::move(data));
 		}
-		break;
+		case Object_key: {
+			JsonValue& obj = cbCtx.stack.back();
+
+			obj.object().push_back(JsonObjectField(std::string(value.string, value.length), JsonValue()));
+			break;
+		}
+		default:
+			return false;
+		}
 	}
-	case Number_int:
-		return add_scalar_value(cbCtx, JsonValue(value.integer));
+	else {
+		cbCtx.firstCall = false;
+		
+		if (type == Object_begin) {
+			cbCtx.stack.push_back(JsonValue(JsonObject(cbCtx.a, 4)));
+			return true;
+		}
+		
+		if (type == Array_begin) {
+			cbCtx.stack.push_back(JsonValue(JsonArray(cbCtx.a, 4)));
+			return true;
+		}
+		
+		switch (type)
+		{
+		case Number_int:
+			*cbCtx.result = JsonValue(value.integer);
+			break;
 
-	case Number_float:
-		return add_scalar_value(cbCtx, JsonValue(value.number));
+		case Number_float:
+			*cbCtx.result = JsonValue(value.number);
+			break;
 
-	case Null_val:
-		return add_scalar_value(cbCtx, JsonValue());
+		case Null_val:
+			*cbCtx.result = JsonValue();
+			break;
 
-	case Bool_true:
-		return add_scalar_value(cbCtx, JsonValue(true));
+		case Bool_true:
+			*cbCtx.result = JsonValue(true);
+			break;
 
-	case Bool_false:
-		return add_scalar_value(cbCtx, JsonValue(false));
+		case Bool_false:
+			*cbCtx.result = JsonValue(false);
+			break;
 
-	case String_val: {
-		JsonValue data(string_view_t{value.string, value.length});
-		return add_scalar_value(cbCtx, std::move(data));
-	}
-	case Object_key: {
-		JsonValue& obj = cbCtx.stack.back();
-
-		obj.object().push_back(JsonObjectField(std::string(value.string, value.length), JsonValue()));
-		break;
-	}
-	default:
-		return false;
+		case String_val: {
+			*cbCtx.result = JsonValue(string_view_t{value.string, value.length});
+			break;
+		}
+		default: return false;
+		}
 	}
 
     return true;
