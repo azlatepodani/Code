@@ -253,31 +253,35 @@ static size_t json_writer_size(const JsonValue& val);
 
 
 void json_writer(std::string& stm, const JsonValue& val) {
+	auto old = setlocale(LC_NUMERIC, "C");
+	if (!old) throw std::exception(/*"runtime error"*/);
+	
 	auto size = json_writer_size(val);
 	size += size/3;
 	stm.reserve(size);
 	json_writer_imp(stm, val);
+	
+	if (!setlocale(LC_NUMERIC, old)) throw std::exception(/*"runtime error"*/);
 }
 
+static const struct num_size_t {
+	unsigned long val;
+	size_t size;
+} g_tabl[] = {
+	{ 10, 1 },
+	{ 100, 2 },
+	{ 1000, 3 },
+	{ 10000, 4 },
+	{ 100000, 5 },
+	{ 1000000, 6 },
+	{ 10000000, 7 },
+	{ 100000000, 8 },
+	{ 1000000000, 9 },
+};
 
 static size_t number_size(long num) {
-	static const struct num_size_t {
-		long val;
-		size_t size;
-	} tab[] = {
-		{ 10, 1 },
-		{ 100, 2 },
-		{ 1000, 3 },
-		{ 10000, 4 },
-		{ 100000, 5 },
-		{ 1000000, 6 },
-		{ 10000000, 7 },
-		{ 100000000, 8 },
-		{ 1000000000, 9 },
-	};
-	
 	unsigned long n;
-	bool negative = 0;
+	int negative = 0;
 	
 	if (num >= 0) n = num;
 	else {
@@ -286,8 +290,8 @@ static size_t number_size(long num) {
 		negative = 1;	// minus sign
 	}
 	
-	auto tabend = tab + sizeof(tab) / sizeof(tab[0]);
-	auto pos = std::lower_bound(tab, tabend, n, [](const num_size_t& el, unsigned long num)
+	auto tabend = g_tabl + sizeof(g_tabl) / sizeof(g_tabl[0]);
+	auto pos = std::lower_bound(g_tabl, tabend, n, [](const num_size_t& el, unsigned long num)
 	{
 		return num >= el.val;
 	});
@@ -295,23 +299,23 @@ static size_t number_size(long num) {
 	return negative + ((pos != tabend) ? pos->size : 10);
 }
 
+static const struct num_size_ll_t {
+	unsigned long long val;
+	size_t size;
+} g_tabll[] = {
+	{ 10000000000LL, 10 },
+	{ 100000000000LL, 11 },
+	{ 1000000000000LL, 12 },
+	{ 10000000000000LL, 13 },
+	{ 100000000000000LL, 14 },
+	{ 1000000000000000LL, 15 },
+	{ 10000000000000000LL, 16 },
+	{ 100000000000000000LL, 17 },
+	{ 1000000000000000000LL, 18 },		// LLONG_MAX  9,223,372,036,854,775,807LL
+};
+
 static size_t number_size(long long num) {
-	static const struct num_size_t {
-		long long val;
-		size_t size;
-	} tab[] = {
-		{ 10000000000LL, 10 },
-		{ 100000000000LL, 11 },
-		{ 1000000000000LL, 12 },
-		{ 10000000000000LL, 13 },
-		{ 100000000000000LL, 14 },
-		{ 1000000000000000LL, 15 },
-		{ 10000000000000000LL, 16 },
-		{ 100000000000000000LL, 17 },
-		{ 1000000000000000000LL, 18 },		// LLONG_MAX  9,223,372,036,854,775,807LL
-	};
-	
-	bool negative = 0;
+	int negative = 0;
 	
 	unsigned long long n;
 	
@@ -324,8 +328,8 @@ static size_t number_size(long long num) {
 		negative = 1;
 	}
 	
-	auto tabend = tab + sizeof(tab) / sizeof(tab[0]);
-	auto pos = std::lower_bound(tab, tabend, n, [](const num_size_t& el, unsigned long long num)
+	auto tabend = g_tabll + sizeof(g_tabll) / sizeof(g_tabll[0]);
+	auto pos = std::lower_bound(g_tabll, tabend, n, [](const num_size_ll_t& el, unsigned long long num)
 	{
 		return num >= el.val;
 	});
@@ -533,7 +537,7 @@ static void json_writer_array(std::string& stm, const JsonArray& val) {
 
 
 template <typename Allocator>
-static int add_scalar_value(parser_callback_ctx_t<Allocator>& cbCtx, JsonValue&& data) {
+static bool add_scalar_value(parser_callback_ctx_t<Allocator>& cbCtx, JsonValue&& data) {
     JsonValue& val = cbCtx.stack.back();
 
     if (val.type == JsonValue::OBJECT) {
@@ -653,27 +657,9 @@ static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val
 }
 
 
-// struct C_Numeric_Locale {
-    // _locale_t loc;
-
-    // C_Numeric_Locale() : loc(_create_locale(LC_NUMERIC, "C"))
-    // {
-        // if (loc == nullptr) throw std::exception("cannot create the locale");
-    // }
-
-    // ~C_Numeric_Locale() {
-        // _free_locale(loc);
-    // }
-
-    // operator _locale_t() { return loc; }
-// } g_loc;
-
-
 static std::string double_to_string(double dbl) {
     char buf[340] = { 0, };
-	//auto old = setlocale(LC_NUMERIC, "C"); // The C locale is set by the parser
     auto len = sprintf(buf, "%.*g", DBL_DECIMAL_DIG, dbl);
-
     return std::string(buf, buf+len);
 }
 

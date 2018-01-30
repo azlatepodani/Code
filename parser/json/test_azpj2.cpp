@@ -34,7 +34,7 @@ std::string loadFile(const wchar_t * path) {
 	}
 	auto size = GetFileSize(h, 0);
 	str.resize(size);
-	if (!ReadFile(h, &str[0], str.size(), 0,0)) {
+	if (!ReadFile(h, &str[0], (ULONG)str.size(), 0,0)) {
 		std::cout << "cannot read file  " << GetLastError() << '\n';
 	}
 	CloseHandle(h);
@@ -50,7 +50,7 @@ std::string writeJson(const JsonValue& root) {
 
 
 template <typename Fn>
-void benchmark(int size, const char * desc, Fn alg)
+void benchmark(int, const char * desc, Fn alg)
 {
 	long long time = 0;
 	LARGE_INTEGER li, li2, freq;
@@ -70,8 +70,7 @@ void benchmark(int size, const char * desc, Fn alg)
 	time += li2.QuadPart - li.QuadPart;
 	
 	time = time * 1000000 / (freq.QuadPart * i);
-	printf("%s %d  time=%dus,  time/n=%f, time/nlogn=%f\n", desc, size, (int)time, 
-				float(time)/size, float(time/(size*19.931568569324)));
+	printf("%s time=%dus\n", desc, (int)time);
 }
 
 template <typename Fn>
@@ -81,7 +80,7 @@ void benchmark(const char * desc, Fn alg)
 }
 
 
-void wmain(int argc, PWSTR argv[]) {
+void wmain(int, PWSTR argv[]) {
 	 
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 	if (GetThreadPriority(GetCurrentThread()) != THREAD_PRIORITY_HIGHEST) printf("Priority set failed\n");

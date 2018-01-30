@@ -395,7 +395,7 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 	if (haveDot | haveExp) {		
 		value_t val;
 		val.number = strtod(buf, nullptr);
-		if (val.number == HUGE_VAL || val.number == -HUGE_VAL) {
+		if (val.number == HUGE_VAL) {
 			return parse_error(p, Invalid_number, savedFirst);
 		}
 		
