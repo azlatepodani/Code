@@ -85,7 +85,7 @@ struct default_alloc_t {
 		::free(b.p);
 	}
 	
-	bool owns(block_t b) {
+	bool owns(block_t) {
 		return true;
 	}
 };
