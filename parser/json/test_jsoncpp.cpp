@@ -83,7 +83,21 @@ void benchmark(char * desc, Fn alg)
 }
 
 
+void check() {
+	Json::Value v(1.E10 / 3);
+	std::string j = writeJson(v);
+	auto p = parseJson(j);
+	
+	if (p == v) {
+		printf("check ok\n");
+	}
+	else {
+		printf("check failed\n");
+	}
+}
+
 void wmain(int argc, PWSTR argv[]) {
+	check();
 	 
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 	if (GetThreadPriority(GetCurrentThread()) != THREAD_PRIORITY_HIGHEST) printf("Priority set failed\n");

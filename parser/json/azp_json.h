@@ -3,6 +3,30 @@
 namespace azp {
 	
 	
+class parser_t;
+
+
+//
+// Parses a string of chars according to the ECMA-404 'The JSON Data Interchange Standard'
+//
+// Preconditions: the string is UTF-8 encoded. The parser's context 'p' is default initialized (do not reuse)
+//
+// Returns true if the string is conform, the maximum recursion depth wasn't reached and
+// the parser's callback didn't return 'false' in any of the invocations.
+//
+// [first, last) is a semi-open interval
+// The buffer will be modified by the function and the result is no longer valid JSON data.
+//
+// The function will throw only if the user defined callback will throw
+//
+bool parseJson(parser_t& p, char * first, char * last);
+
+//
+// Helper function: it will make a copy of the buffer and call the function above.
+//
+bool parseJson(parser_t& p, const char * first, const char * last);
+
+
 enum ParserTypes {
 	Object_begin,
 	Object_end,
@@ -107,26 +131,6 @@ public:
 	friend bool parseJson(parser_t& p, const char * first, const char * last);
 };
 
-
-//
-// Parses a string of chars according to the ECMA-404 'The JSON Data Interchange Standard'
-//
-// Preconditions: the string is UTF-8 encoded. The parser's context 'p' is default initialized (do not reuse)
-//
-// Returns true if the string is conform, the maximum recursion depth wasn't reached and
-// the parser's callback didn't return 'false' in any of the invocations.
-//
-// [first, last) is a semi-open interval
-// The buffer will be modified by the function and the result is no longer valid JSON data.
-//
-// The function will throw only if the user defined callback will throw
-//
-bool parseJson(parser_t& p, char * first, char * last);
-
-//
-// Helper function: it will make a copy of the buffer and call the function above.
-//
-bool parseJson(parser_t& p, const char * first, const char * last);
 
 } // namespace azp
 

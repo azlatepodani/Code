@@ -8,59 +8,12 @@
 
 
 namespace azp {
+
 	
+static bool parseJson(parser_base_t& p, char * first, char * last);
+static bool parse_error(parser_base_t& p, ParserErrors err, const char * curPtr);
+
 	
-	
-parser_t::parser_t() {
-	parsed = nullptr;
-	context = nullptr;
-	callback = [](void*, ParserTypes, const value_t&) { return true; };
-	recursion = 0;
-	max_recursion = 16;
-	error = No_error;
-	err_position = 0;
-	_first = nullptr;
-	parsed_offset = 0;
-}
-
-
-static bool parse_error(parser_base_t& p, ParserErrors err, const char * curPtr)
-{
-	p.error = err;
-	p.err_position = curPtr - p._first;
-	return false;
-}
-
-
-static char * skip_wspace(char * first, char * last);
-static bool parseJsonObject(parser_base_t& p, char * first, char * last);
-static bool parseJsonArray(parser_base_t& p, char * first, char * last);
-static bool parseJsonScalarV(parser_base_t& p, char * first, char * last);
-
-
-struct dec_on_exit {
-	dec_on_exit(int& val) : val(val) {}
-	~dec_on_exit() { --val; }
-	int& val;
-};
-
-
-static bool parseJson(parser_base_t& p, char * first, char * last) {
-	if (++p.recursion >= p.max_recursion) return parse_error(p, Max_recursion, first);
-	
-	dec_on_exit de(p.recursion);
-	
-	first = skip_wspace(first, last);
-	if (first == last) {
-		return parse_error(p, No_value, first);
-	}
-	
-	if (*first == '{') return parseJsonObject(p, first+1, last);
-	if (*first == '[') return parseJsonArray(p, first+1, last);
-	return parseJsonScalarV(p, first, last);
-}
-
-
 bool parseJson(parser_t& p, char * first, char * last) {
 	p._first = first;
 	
@@ -102,6 +55,55 @@ bool parseJson(parser_t& p, const char * first, const char * last)
 	return result;
 }
 
+	
+parser_t::parser_t() {
+	parsed = nullptr;
+	context = nullptr;
+	callback = [](void*, ParserTypes, const value_t&) { return true; };
+	recursion = 0;
+	max_recursion = 16;
+	error = No_error;
+	err_position = 0;
+	_first = nullptr;
+	parsed_offset = 0;
+}
+
+
+static char * skip_wspace(char * first, char * last);
+static bool parseJsonObject(parser_base_t& p, char * first, char * last);
+static bool parseJsonArray(parser_base_t& p, char * first, char * last);
+static bool parseJsonScalarV(parser_base_t& p, char * first, char * last);
+
+
+struct dec_on_exit {
+	dec_on_exit(int& val) : val(val) {}
+	~dec_on_exit() { --val; }
+	int& val;
+};
+
+
+static bool parseJson(parser_base_t& p, char * first, char * last) {
+	if (++p.recursion >= p.max_recursion) return parse_error(p, Max_recursion, first);
+	
+	dec_on_exit de(p.recursion);
+	
+	first = skip_wspace(first, last);
+	if (first == last) {
+		return parse_error(p, No_value, first);
+	}
+	
+	if (*first == '{') return parseJsonObject(p, first+1, last);
+	if (*first == '[') return parseJsonArray(p, first+1, last);
+	return parseJsonScalarV(p, first, last);
+}
+
+
+static bool parse_error(parser_base_t& p, ParserErrors err, const char * curPtr)
+{
+	p.error = err;
+	p.err_position = curPtr - p._first;
+	return false;
+}
 
 
 static char * skip_wspace(char * first, char * last) {

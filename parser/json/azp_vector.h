@@ -15,13 +15,13 @@ struct vector {
 	T* _max;
 	Allocator& _a;
 	
-	vector(Allocator& a) : _start(0), _end(0), _max(0), _a(a) { }
+	vector(Allocator& a) noexcept : _start(0), _end(0), _max(0), _a(a) { }
 	vector(Allocator& a, size_t requested) : vector(a) {
 		reserve(requested);
 	}
 	
-	vector(vector<T, Allocator>&& other);
-	vector& operator=(vector<T, Allocator>&& other);
+	vector(vector<T, Allocator>&& other) noexcept;
+	vector& operator=(vector<T, Allocator>&& other) noexcept;
 	
 	vector(const vector<T, Allocator>& other);
 	vector& operator=(const vector<T, Allocator>& other);
@@ -34,7 +34,7 @@ struct vector {
 	size_t capacity() const { return _max - _start; }
 	size_t size() const { return _end - _start; }
 	
-	void set_size(size_t s) { _end = _start + s; }	// extension
+	void set_size(size_t s) noexcept { _end = _start + s; }	// extension
 
 	T* begin() { return _start; }
 	const T* begin() const { return _start; }
@@ -115,7 +115,7 @@ void vector<T, Allocator>::resize(size_t n) {
 
 
 template <typename T, typename Allocator>
-vector<T, Allocator>::vector(vector<T, Allocator>&& other)
+vector<T, Allocator>::vector(vector<T, Allocator>&& other) noexcept
 	: _start(other._start)
 	, _end(other._end)
 	, _max(other._max)
@@ -128,7 +128,7 @@ vector<T, Allocator>::vector(vector<T, Allocator>&& other)
 
 
 template <typename T, typename Allocator>
-vector<T, Allocator>& vector<T, Allocator>::operator=(vector<T, Allocator>&& other)
+vector<T, Allocator>& vector<T, Allocator>::operator=(vector<T, Allocator>&& other) noexcept
 {
 	vector<T, Allocator> tmp(std::move(other));
 	std::swap(tmp._start, _start);

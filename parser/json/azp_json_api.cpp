@@ -14,28 +14,6 @@
 namespace azp {
 
 
-static void jsonEscape(const char* src, size_t len, std::string& dst);
-
-static void json_writer_object(std::string& stm, const JsonObject& val);
-static void json_writer_array(std::string& stm, const JsonArray& val);
-
-static std::string double_to_string(double dbl);
-
-
-template <typename Allocator>
-struct parser_callback_ctx_t {
-	parser_callback_ctx_t(Allocator& a) : stack(a), a(a), firstCall(1), result(0) { }
-	bool firstCall;
-    vector<JsonValue, Allocator> stack;
-    JsonValue * result;
-	Allocator& a;
-};
-
-
-template <typename Allocator>
-static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val) _NOEXCEPT;
-
-
 JsonValue& JsonValue::operator=(const JsonValue& other) {
 	if (type == other.type) {
 		//
@@ -119,7 +97,7 @@ JsonValue& JsonValue::operator=(const JsonValue& other) {
 }
 
 
-JsonValue& JsonValue::operator=(JsonValue&& other) _NOEXCEPT {
+JsonValue& JsonValue::operator=(JsonValue&& other) noexcept {
 	switch (type) {
 		case OBJECT:
 			object().~JsonObject();
@@ -204,6 +182,23 @@ JsonValue::~JsonValue() {
 }
 
 
+static size_t json_writer_size(const JsonValue& val);
+static void json_writer_imp(std::string& stm, const JsonValue& val);
+
+
+void json_writer(std::string& stm, const JsonValue& val) {
+	auto old = setlocale(LC_NUMERIC, "C");
+	if (!old) throw std::exception(/*"runtime error"*/);
+	
+	auto size = json_writer_size(val);
+	size += size/3;
+	stm.reserve(size);
+	json_writer_imp(stm, val);
+	
+	if (!setlocale(LC_NUMERIC, old)) throw std::exception(/*"runtime error"*/);
+}
+
+
 static void json_writer_imp(std::string& stm, const JsonValue& val) {
 	switch (val.type) {
 		case JsonValue::OBJECT:
@@ -248,21 +243,6 @@ static void json_writer_imp(std::string& stm, const JsonValue& val) {
 	}
 }
 
-
-static size_t json_writer_size(const JsonValue& val);
-
-
-void json_writer(std::string& stm, const JsonValue& val) {
-	auto old = setlocale(LC_NUMERIC, "C");
-	if (!old) throw std::exception(/*"runtime error"*/);
-	
-	auto size = json_writer_size(val);
-	size += size/3;
-	stm.reserve(size);
-	json_writer_imp(stm, val);
-	
-	if (!setlocale(LC_NUMERIC, old)) throw std::exception(/*"runtime error"*/);
-}
 
 static const struct num_size_t {
 	unsigned long val;
@@ -411,6 +391,29 @@ static size_t json_writer_size(const JsonValue& val) {
 }
 
 
+static void jsonEscape(const char* src, size_t len, std::string& dst);
+
+static void json_writer_object(std::string& stm, const JsonObject& val);
+static void json_writer_array(std::string& stm, const JsonArray& val);
+
+static std::string double_to_string(double dbl);
+
+
+template <typename Allocator>
+struct parser_callback_ctx_t {
+	parser_callback_ctx_t(Allocator& a) 
+	: stack(a), a(a), firstCall(1), result(0) { }
+	bool firstCall;
+    vector<JsonValue, Allocator> stack;
+    JsonValue * result;
+	Allocator& a;
+};
+
+
+template <typename Allocator>
+static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val) noexcept;
+
+
 std::pair<JsonValue, std::string> json_reader(const std::string& stm) {
     if (stm.empty()) return std::pair<JsonValue, std::string>();
 
@@ -555,7 +558,7 @@ static bool add_scalar_value(parser_callback_ctx_t<Allocator>& cbCtx, JsonValue&
 
 
 template <typename Allocator>
-static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& value) _NOEXCEPT {
+static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& value) noexcept {
 	auto& cbCtx = *(parser_callback_ctx_t<Allocator> *)ctx;
 	
 	if (!cbCtx.firstCall) {
