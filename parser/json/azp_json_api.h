@@ -102,7 +102,7 @@ struct JsonValue {
 		_initString(JsonString(str));
 	}
 	
-	JsonValue(string_view_t str)
+	explicit JsonValue(string_view_t str)
 		: type(STRING_VIEW)
 	{
 		u.view = str;
@@ -147,25 +147,17 @@ struct JsonValue {
     ~JsonValue();
 };
 
-
+//
+// Guarantees that any double will be written so that parsing the resulting JSON will return an identical value
+// Precondition: the double value is not any of the NANs and INFs
+//
 void json_writer(std::string& stm, const JsonValue& val);
-void json_reader(std::istream& stm, JsonValue& val);
+
+//
+// The returned string is the memory backing for all the string values in the json value.
+// Copying the json value will decouple the new object from the original string.
+//
 std::pair<JsonValue, std::string> json_reader(const std::string& stm);
-
-JsonValue& json_get_child(JsonValue& val, const std::string& path);
-JsonValue& json_get_child(JsonValue& val, const std::string& path, JsonValue& defVal);
-
-inline const JsonValue& json_get_child(const JsonValue& val, const std::string& path) {
-    return json_get_child(const_cast<JsonValue&>(val), path);
-}
-
-inline const JsonValue& json_get_child(const JsonValue& val, const std::string& path, const JsonValue& defVal) {
-    return json_get_child(const_cast<JsonValue&>(val), path, const_cast<JsonValue&>(defVal));
-}
-
-JsonValue& json_put_child(JsonValue& val, const std::string& path, JsonValue child);
-
-JsonValue json_remove_child(JsonValue& val, const std::string& path);
 
 
 struct JsonObjectField {
@@ -182,44 +174,10 @@ struct JsonObjectField {
 		, value(other.value)
 	{ }
 	
-	JsonObjectField(JsonObjectField&& other) _NOEXCEPT
-		: name(std::move(other.name))
-		, value(std::move(other.value))
-	{ }
-	
-	JsonObjectField& operator=(const JsonObjectField& other) {
-		name = other.name;
-		value = other.value;
-		return  *this;
-	}
-	
-	JsonObjectField& operator=(JsonObjectField&& other) _NOEXCEPT {
-		name = std::move(other.name);
-		value = std::move(other.value);
-		return  *this;
-	}
+	JsonObjectField(JsonObjectField&& other) _NOEXCEPT = default;
+	JsonObjectField& operator=(const JsonObjectField& other) = default;
+	JsonObjectField& operator=(JsonObjectField&& other) _NOEXCEPT = default;
 };
-
-
-bool operator==(const JsonValue& left, const JsonValue& right);
-bool operator==(const JsonObjectField& left, const JsonObjectField& right);
-
-
-inline bool operator!=(const JsonValue& left, const JsonValue& right) {
-	return !(left == right);
-}
-
-
-inline bool operator!=(const JsonObjectField& left, const JsonObjectField& right) {
-	return !(left == right);
-}
-
-
-long long json_to_number(const JsonValue& val);
-bool json_to_bool(const JsonValue& val);
-std::string json_to_string(const JsonValue& val);
-double json_to_float(const JsonValue& val);
-
 
 
 } // namespace asu
