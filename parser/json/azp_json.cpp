@@ -247,15 +247,17 @@ static bool parseString(parser_base_t& p, char * first, char * last, ParserTypes
 	auto cur = first;
 	
 	for (;n;--n) {
+		auto c = *first;
 		// end of string
-		if (*first == '"') {
+		if (c == '"') {
 			p.parsed = first+1;
 			return call_string_callback(p, start, cur, report_type);
 		}
 		
 		// copy normal character
-		if (*first != '\\') {
-			*cur++ = *first++;
+		if (c != '\\') {
+			*cur++ = c;
+			first++;
 			continue;
 		}
 
@@ -264,23 +266,24 @@ static bool parseString(parser_base_t& p, char * first, char * last, ParserTypes
 		n--;
 		if (!n) return parse_error(p, No_string_end, start-1);
 		
-		if (*first != 'u') {
-			if ((*first == '"') | (*first == '\\') | (*first == '/')) {
-				*cur = *first;
+		c = *first;
+		if (c != 'u') {
+			if ((c == '"') | (c == '\\') | (c == '/')) {
+				*cur = c;
 			}
-			else if (*first == 'n') {
+			else if (c == 'n') {
 				*cur = '\n';
 			}
-			else if (*first == 'r') {
+			else if (c == 'r') {
 				*cur = '\r';
 			}
-			else if (*first == 't') {
+			else if (c == 't') {
 				*cur = '\t';
 			}
-			else if (*first == 'b') {
+			else if (c == 'b') {
 				*cur = '\b';
 			}
-			else if (*first == 'f') {
+			else if (c == 'f') {
 				*cur = '\f';
 			}
 			else {
@@ -309,7 +312,7 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 	char buf[336]; // longest valid long long string "-9223372036854775807" (19 + 1)
 				   // longest valid double string length is ~330 chars long
 				   // 336 was selected because is divisible by 8 (stack alignment size on x64)
-	char * cur = buf;
+	size_t cur = 0;
 	char * savedFirst = first;
 	
 	if (last - first > sizeof(buf) - 1) {
@@ -321,7 +324,7 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 	*(last-1) = 0; // sentinel
 	
 	// optional '-' sign
-	if (*first == '-') *cur++ = *first++;
+	if (*first == '-') buf[cur++] = *first++;
 
 	bool haveDigit = false;
 	bool leadingZero = false;
@@ -331,14 +334,14 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 	bool haveExpDigit = false;
 
 	if (*first == '0') {	// no leading zeros allowed
-		*cur++ = *first++;	// valid input: 0, 0.x, 0ex
+		buf[cur++] = *first++;	// valid input: 0, 0.x, 0ex
 		haveDigit = true;
 		leadingZero = true;
 	}
 	else {
 		// digits
 		while (isDigit(*first)) {
-			*cur++ = *first++;
+			buf[cur++] = *first++;
 			haveDigit = true;
 		}
 	}
@@ -347,11 +350,11 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 	if (*first == '.') {
 		haveDot = true;
 		leadingZero = false;
-		*cur++ = *first++;
+		buf[cur++] = *first++;
 		
 		// optional digits after the dot
 		while (isDigit(*first)) {
-			*cur++ = *first++;
+			buf[cur++] = *first++;
 			haveDotDigit = true;
 		}
 	}
@@ -361,27 +364,27 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 		haveExp = true;
 		leadingZero = false;
 		
-		*cur++ = *first++;
+		buf[cur++] = *first++;
 
 		// optional +/- signs
-		if (*first == '-' || *first == '+') *cur++ = *first++;
+		if (*first == '-' || *first == '+') buf[cur++] = *first++;
 	
 		// digits after the exponent
 		while (isDigit(*first)) {
-			*cur++ = *first++;
+			buf[cur++] = *first++;
 			haveExpDigit = true;
 		}
 	}
 	
 	if (first == (last-1) && !leadingZero && isDigit(savedCh)) {
-		*cur++ = savedCh;
+		buf[cur++] = savedCh;
 		first++;
 		if (haveExp) haveExpDigit = true;
 		else if (haveDot) haveDotDigit = true;
 		else haveDigit = true;
 	}
 	
-	*cur = 0;
+	buf[cur] = 0;
 	*(last-1) = savedCh;	// replace the sentinel with the saved character
 	
 	if (haveDot && !haveExp && !haveDotDigit ||
