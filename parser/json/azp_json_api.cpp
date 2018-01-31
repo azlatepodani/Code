@@ -199,6 +199,53 @@ void json_writer(std::string& stm, const JsonValue& val) {
 }
 
 
+template <typename Allocator>
+struct parser_callback_ctx_t {
+	bool firstCall;
+    vector<JsonValue, Allocator> stack;
+    JsonValue * result;
+	Allocator& a;
+	
+	parser_callback_ctx_t(Allocator& a) 
+		: stack(a), firstCall(1), a(a), result(0)
+	{ }
+};
+
+
+template <typename Allocator>
+static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val) noexcept;
+
+
+std::pair<JsonValue, std::string> json_reader(const std::string& stm) {
+	auto val = std::pair<JsonValue, std::string>();
+
+    if (!stm.empty()) {
+		parser_t p;
+		alloc_t a;
+
+		auto ctx = parser_callback_ctx_t<alloc_t>(a);
+
+		p.set_max_recursion(20);
+		p.set_callback(&parser_callback<alloc_t>, &ctx);
+
+		ctx.stack.reserve(p.get_max_recursion());
+
+		ctx.result = &val.first;
+		val.second = stm;
+		
+		if (!parseJson(p, &val.second[0], &val.second[0]+val.second.size())) throw std::exception(/*"cannot parse"*/);
+	}
+	
+	return val;
+}
+
+
+static void jsonEscape(const char* src, size_t len, std::string& dst);
+static void json_writer_object(std::string& stm, const JsonObject& val);
+static void json_writer_array(std::string& stm, const JsonArray& val);
+static std::string double_to_string(double dbl);
+
+
 static void json_writer_imp(std::string& stm, const JsonValue& val) {
 	switch (val.type) {
 		case JsonValue::OBJECT:
@@ -259,6 +306,7 @@ static const struct num_size_t {
 	{ 1000000000, 9 },
 };
 
+
 static size_t number_size(long num) {
 	unsigned long n;
 	int negative = 0;
@@ -279,6 +327,7 @@ static size_t number_size(long num) {
 	return negative + ((pos != tabend) ? pos->size : 10);
 }
 
+
 static const struct num_size_ll_t {
 	unsigned long long val;
 	size_t size;
@@ -293,6 +342,7 @@ static const struct num_size_ll_t {
 	{ 100000000000000000LL, 17 },
 	{ 1000000000000000000LL, 18 },		// LLONG_MAX  9,223,372,036,854,775,807LL
 };
+
 
 static size_t number_size(long long num) {
 	int negative = 0;
@@ -391,52 +441,6 @@ static size_t json_writer_size(const JsonValue& val) {
 }
 
 
-static void jsonEscape(const char* src, size_t len, std::string& dst);
-
-static void json_writer_object(std::string& stm, const JsonObject& val);
-static void json_writer_array(std::string& stm, const JsonArray& val);
-
-static std::string double_to_string(double dbl);
-
-
-template <typename Allocator>
-struct parser_callback_ctx_t {
-	parser_callback_ctx_t(Allocator& a) 
-	: stack(a), a(a), firstCall(1), result(0) { }
-	bool firstCall;
-    vector<JsonValue, Allocator> stack;
-    JsonValue * result;
-	Allocator& a;
-};
-
-
-template <typename Allocator>
-static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val) noexcept;
-
-
-std::pair<JsonValue, std::string> json_reader(const std::string& stm) {
-    if (stm.empty()) return std::pair<JsonValue, std::string>();
-
-    parser_t p;
-
-	alloc_t a;
-    auto ctx = parser_callback_ctx_t<alloc_t>(a);
-
-	p.set_max_recursion(20);
-	ctx.stack.reserve(p.get_max_recursion());
-	
-	p.set_callback(&parser_callback<alloc_t>, &ctx);
-
-	std::pair<JsonValue, std::string> val;
-    ctx.result = &val.first;
-	val.second = stm;
-	
-	if (!parseJson(p, &val.second[0], &val.second[0]+val.second.size())) throw std::exception(/*"cannot parse"*/);
-	
-	return val;
-}
-
-
 static bool needEscape(char ch)
 {
     if ((unsigned char)ch < 0x20) {
@@ -465,6 +469,7 @@ static const char * const esctab[0x20] = {
         "\\u001c", "\\u001d", "\\u001e", "\\u001f",
     };
 
+	
 static const char * escape(char ch)
 {
 	if (ch == '"') return "\\\"";
@@ -567,14 +572,16 @@ static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val
 		case Array_begin:
 			cbCtx.stack.push_back(JsonValue(JsonArray(cbCtx.a, 4)));
 			break;
+
 		case Object_begin:
 			cbCtx.stack.push_back(JsonValue(JsonObject(cbCtx.a, 4)));
 			break;
+			
 		case Array_end:
 		case Object_end: {
 			JsonValue obj(std::move(cbCtx.stack.back()));
 			cbCtx.stack.pop_back();
-
+			
 			if (cbCtx.stack.begin() != cbCtx.stack.end()) {
 				return add_scalar_value(cbCtx, std::move(obj));
 			}
@@ -582,6 +589,7 @@ static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val
 				// we're done
 				*cbCtx.result = std::move(obj);
 			}
+			
 			break;
 		}
 		case Number_int:
