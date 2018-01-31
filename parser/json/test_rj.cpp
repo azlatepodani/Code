@@ -1,4 +1,3 @@
-
 #include <utility>
 #include <cstdint>
 #include <array>
@@ -9,19 +8,20 @@
 #include <fstream>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include "boost/property_tree/ptree.hpp"
-#include "boost/property_tree/json_parser.hpp"
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
+#include <iostream>
 
-using BoostJV = boost::property_tree::ptree;
+using namespace rapidjson;
 
-BoostJV parseJson(const std::string& doc) {
-	std::istringstream inStream(doc);
-	BoostJV root;
-	try { boost::property_tree::json_parser::read_json(inStream, root); }
-		catch (std::exception& e) {
-		std::cout << "parse failure  " << e.what() << '\n';
-	}
-	return root;
+// https://github.com/Tencent/rapidjson
+
+Document parseJson(const std::string& doc) {
+	Document d;
+    d.Parse(doc.c_str());
+
+	return d;
 }
 
 
@@ -42,10 +42,12 @@ std::string loadFile(const wchar_t * path) {
 }
 
 
-std::string writeJson(const BoostJV& root) {
-	std::ostringstream outStream;
-	boost::property_tree::json_parser::write_json(outStream, root);
-	return outStream.str();
+std::string writeJson(const Document& d) {
+	StringBuffer buffer;
+    Writer<StringBuffer> writer(buffer);
+    d.Accept(writer);
+
+	return buffer.GetString();
 }
 
 
@@ -81,23 +83,30 @@ void benchmark(char * desc, Fn alg)
 }
 
 
+static std::string double_to_string(double dbl) {
+    char buf[340] = { 0, };
+    auto len = sprintf(buf, "%.*g", 17, dbl);
+    return std::string(buf, buf+len);
+}
+
+
 void check() {
-	BoostJV v, d;
-	d.put_value(1.E10 / 3);
-	v.put_child("test", d);
-	std::string j = writeJson(v);
-	auto p = parseJson(j);
+	StringBuffer s;
+    Writer<StringBuffer> writer(s);
+
+	writer.Double(1. / 3);
 	
-	if (p == v) {
+	auto str = double_to_string(1. / 3);
+	
+	 if (str == s.GetString()) {
 		printf("check ok\n");
 	}
 	else {
-		printf("check failed\n");
+		printf("check failed  %s  %s\n", str.c_str(), s.GetString());
 	}
 }
 
 void wmain(int argc, PWSTR argv[]) {
-	 
 	check();
 	 
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
@@ -107,9 +116,9 @@ void wmain(int argc, PWSTR argv[]) {
 	 
 	std::string str = loadFile(argv[1]);
 	
-	benchmark("JsonCPP load",  [&str](){parseJson(str);});
+	benchmark("RapidJson load",  [&str](){parseJson(str);});
 	auto root = parseJson(str);
-	benchmark("JsonCPP write", [&root](){writeJson(root);});
+	benchmark("RapidJson write", [&root](){writeJson(root);});
 	
 	printf("\n");
 }
