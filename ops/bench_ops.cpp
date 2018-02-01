@@ -217,7 +217,7 @@ void benchmark_float(T t[1024]) {
 	}, 1024*20480);
 	
 	// remove 0s from the divisor
-	for (int i=0; i<1024; ++i) { r[i] = r[i] ? r[i] : 1; }
+	for (int i=0; i<1024; ++i) { r[i] = (r[i] < 0.000001 && r[i] > -0.000001) ? r[i] : 1; }
 	
 	time_op([&](){
 		for (int j=0; j<20480; ++j)
