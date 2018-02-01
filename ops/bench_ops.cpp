@@ -111,6 +111,62 @@ void benchmark_char(T t[1024]) {
 		}
 	}, 1024*20480);
 	
+	time_op([&](){
+		for (int j=0; j<20480; ++j)
+		for (int i=0; i<1024; ++i) {
+			t[i] = apply(l[i], [](auto a) { return T(-a); });
+		}
+	}, 1024*20480);
+
+	time_op([&](){
+		for (int j=0; j<20480; ++j)
+		for (int i=0; i<1024; ++i) {
+			t[i] = apply(l[i], [](auto a) { return T(++a); });
+		}
+	}, 1024*20480);
+	
+	time_op([&](){
+		for (int j=0; j<20480; ++j)
+		for (int i=0; i<1024; ++i) {
+			t[i] = apply(l[i], [](auto a) { return T(--a); });
+		}
+	}, 1024*20480);
+
+	time_op([&](){
+		for (int j=0; j<20480; ++j)
+		for (int i=0; i<1024; ++i) {
+			t[i] = apply(l[i], [](auto a) { return T(~a); });
+		}
+	}, 1024*20480);
+
+	time_op([&](){
+		for (int j=0; j<20480; ++j)
+		for (int i=0; i<1024; ++i) {
+			t[i] = apply(l[i], r[i], [](auto a, auto b) { return T(a < b); });
+		}
+	}, 1024*20480);
+
+	time_op([&](){
+		for (int j=0; j<20480; ++j)
+		for (int i=0; i<1024; ++i) {
+			t[i] = apply(l[i], r[i], [](auto a, auto b) { return T(a > b); });
+		}
+	}, 1024*20480);
+	
+	time_op([&](){
+		for (int j=0; j<20480; ++j)
+		for (int i=0; i<1024; ++i) {
+			t[i] = apply(l[i], r[i], [](auto a, auto b) { return T(a == b); });
+		}
+	}, 1024*20480);
+
+	time_op([&](){
+		for (int j=0; j<20480; ++j)
+		for (int i=0; i<1024; ++i) {
+			t[i] = apply(l[i], r[i], [](auto a, auto b) { return T(a?a:b); });
+		}
+	}, 1024*20480);
+	
 	for (int i=0; i<1024; ++i) {
 		r[i] = (unsigned)r[i] & 31;
 	}
@@ -220,6 +276,62 @@ void benchmark_float(T t[1024]) {
 	}, 1024*20480);
 	
 	time_op([&](){
+		for (int j=0; j<20480; ++j)
+		for (int i=0; i<1024; ++i) {
+			t[i] = apply(l[i], [](auto a) { return T(-a); });
+		}
+	}, 1024*20480);
+
+	time_op([&](){
+		for (int j=0; j<20480; ++j)
+		for (int i=0; i<1024; ++i) {
+			t[i] = apply(l[i], [](auto a) { return T(++a); });
+		}
+	}, 1024*20480);
+	
+	time_op([&](){
+		for (int j=0; j<20480; ++j)
+		for (int i=0; i<1024; ++i) {
+			t[i] = apply(l[i], [](auto a) { return T(--a); });
+		}
+	}, 1024*20480);
+
+	time_op([&](){
+		// for (int j=0; j<20480; ++j)
+		// for (int i=0; i<1024; ++i) {
+			// t[i] = apply(l[i], [](auto a) { return T(~a); });
+		// }
+	}, 1024*20480);
+
+	time_op([&](){
+		for (int j=0; j<20480; ++j)
+		for (int i=0; i<1024; ++i) {
+			t[i] = apply(l[i], r[i], [](auto a, auto b) { return T(a < b); });
+		}
+	}, 1024*20480);
+
+	time_op([&](){
+		for (int j=0; j<20480; ++j)
+		for (int i=0; i<1024; ++i) {
+			t[i] = apply(l[i], r[i], [](auto a, auto b) { return T(a > b); });
+		}
+	}, 1024*20480);
+	
+	time_op([&](){
+		for (int j=0; j<20480; ++j)
+		for (int i=0; i<1024; ++i) {
+			t[i] = apply(l[i], r[i], [](auto a, auto b) { return T(a == b); });
+		}
+	}, 1024*20480);
+
+	time_op([&](){
+		for (int j=0; j<20480; ++j)
+		for (int i=0; i<1024; ++i) {
+			t[i] = apply(l[i], r[i], [](auto a, auto b) { return T(a?a:b); });
+		}
+	}, 1024*20480);
+	
+	time_op([&](){
 		// for (int j=0; j<20480; ++j)
 		// for (int i=0; i<1024; ++i) {
 			// t[i] = apply(l[i], r[i], [](auto a, auto b) { return T(a << b); });
@@ -246,13 +358,13 @@ void benchmark_float(T t[1024]) {
 
 
 int main() {
-	printf("     +      -      *      /      %%       ^      |      &     ||    &&     !      <<      >>\n");
+	printf("     +      -      *      /      %%       ^      |      &     ||    &&     !      -      ++     --      ~      <      >     ==     ?:     <<      >>\n");
 	{
 	char t[1024];
 	benchmark_char(t);
 	printf("   char\n");
 	}
-		{
+	{
 	short t[1024];
 	benchmark_char(t);
 	printf("   short\n");
