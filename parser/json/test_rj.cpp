@@ -1,3 +1,4 @@
+
 #include <utility>
 #include <cstdint>
 #include <array>
@@ -6,14 +7,19 @@
 #include <string>
 #include <iostream>
 #include <fstream>
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+#include <chrono>
+#include <ratio>
+#if defined(_MSC_VER)
+	#define WIN32_LEAN_AND_MEAN
+	#include <windows.h>
+#endif // _MSC_VER
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
-#include <iostream>
+
 
 using namespace rapidjson;
+
 
 // https://github.com/Tencent/rapidjson
 
@@ -24,22 +30,42 @@ Document parseJson(const std::string& doc) {
 	return d;
 }
 
+#if defined(_MSC_VER)
+	std::string loadFile(const wchar_t * path) {
+		std::string str;
+		auto h = CreateFileW(path, GENERIC_READ, 0,0, OPEN_EXISTING, 0,0);
+		if (h == INVALID_HANDLE_VALUE) {
+			std::cout << "cannot open file  " << GetLastError() << '\n';
+			return std::string();
+		}
+		auto size = GetFileSize(h, 0);
+		str.resize(size);
+		if (!ReadFile(h, &str[0], (ULONG)str.size(), 0,0)) {
+			std::cout << "cannot read file  " << GetLastError() << '\n';
+		}
+		CloseHandle(h);
+		return str;
+	}
 
-std::string loadFile(const wchar_t * path) {
-	std::string str;
-	auto h = CreateFileW(path, GENERIC_READ, 0,0, OPEN_EXISTING, 0,0);
-	if (h == INVALID_HANDLE_VALUE) {
-		std::cout << "cannot open file  " << GetLastError() << '\n';
-		return "";
+#else
+	std::string loadFile(const char * path) {
+		std::string str;
+		std::ifstream stm(path, std::ios::binary);
+		
+		if (!stm.good()) {
+			std::cout << "cannot open file\n";
+			return std::string();
+		}
+		
+		stm.seekg(0, std::ios_base::end);
+		auto size = stm.tellg();
+		stm.seekg(0, std::ios_base::beg);
+		
+		str.resize(size);
+		stm.read(&str[0], size);
+		return str;
 	}
-	auto size = GetFileSize(h, 0);
-	str.resize(size);
-	if (!ReadFile(h, &str[0], str.size(), 0,0)) {
-		std::cout << "cannot read file  " << GetLastError() << '\n';
-	}
-	CloseHandle(h);
-	return str;
-}
+#endif // _MSC_VER
 
 
 std::string writeJson(const Document& d) {
@@ -52,32 +78,25 @@ std::string writeJson(const Document& d) {
 
 
 template <typename Fn>
-void benchmark(int size, char * desc, Fn alg)
+void benchmark(int, const char * desc, Fn alg)
 {
-	long long time = 0;
-	LARGE_INTEGER li, li2, freq;
-	
-	QueryPerformanceFrequency(&freq);
-	 
 	int i=0;
 	int maxi = 1500;
 	
-	QueryPerformanceCounter(&li);
+	auto start = std::chrono::steady_clock::now();
 	
 	for (; i<maxi; ++i) {
 		alg();
 	}
 	
-	QueryPerformanceCounter(&li2);
-	time += li2.QuadPart - li.QuadPart;
+	auto end = std::chrono::steady_clock::now();
+	auto diff = std::chrono::duration_cast<std::chrono::microseconds>(end-start);
 	
-	time = time * 1000000 / (freq.QuadPart * i);
-	printf("%s %d  time=%dus,  time/n=%f, time/nlogn=%f\n", desc, size, (int)time, 
-				float(time)/size, float(time/(size*19.931568569324)));
+	printf("%s  time=%dus\n", desc, (int)(diff.count()/maxi));
 }
 
 template <typename Fn>
-void benchmark(char * desc, Fn alg)
+void benchmark(const char * desc, Fn alg)
 {
 	benchmark(0, desc, alg);
 }
@@ -106,21 +125,30 @@ void check() {
 	}
 }
 
-void wmain(int argc, PWSTR argv[]) {
-	check();
-	 
+
+
+#if defined(_MSC_VER)
+int wmain(int, PWSTR argv[])
+{
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 	if (GetThreadPriority(GetCurrentThread()) != THREAD_PRIORITY_HIGHEST) printf("Priority set failed\n");
 	 
 	if (!SetThreadAffinityMask(GetCurrentThread(), 1)) printf("Affinity set failed\n");
+
+#else
+int main(int, char* argv[]) {
+#endif
+
+	check();
 	 
-	std::string str = loadFile(argv[1]);
+	auto str = loadFile(argv[1]);
 	
-	benchmark("RapidJson load",  [&str](){parseJson(str);});
+	benchmark("Json API load",  [&str](){parseJson(str);});
 	auto root = parseJson(str);
-	benchmark("RapidJson write", [&root](){writeJson(root);});
+	benchmark("Json API write", [&root,&str](){/*if (str != */writeJson(root)/*) __debugbreak()*/;});
 	
 	printf("\n");
+	return 0;
 }
 
 
