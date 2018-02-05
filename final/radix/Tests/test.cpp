@@ -138,14 +138,11 @@ template <typename T, typename Fn>
 void benchmark(int size, const char * desc, std::vector<T>& vec, std::mt19937& g, Fn alg)
 {
 	long long time = 0;
-	// LARGE_INTEGER li, li2, freq;
-	
-	// QueryPerformanceFrequency(&freq);
 	 
 	std::shuffle(vec.begin(), vec.begin()+size, g);
 	std::vector<T> backup(vec.begin(), vec.begin()+size);
 	alg(&vec[0], &vec[0]+size);
-	//if (!std::is_sorted(&vec[0], &vec[0]+size)) __debugbreak();
+
 	for (auto l=vec.begin(), r=l+1; r != vec.end(); ++l,++r) {
 		if (compare(*r, *l, 0)) {
 			print(*l, *r);
@@ -153,15 +150,13 @@ void benchmark(int size, const char * desc, std::vector<T>& vec, std::mt19937& g
 	}
 	
 	int i=0;
-	int maxi = 15;//00000 / size;
+	int maxi = 15;
 	for (; i<maxi; ++i) {
 		vec = std::vector<T>(backup.begin(), backup.begin()+size);
-		//QueryPerformanceCounter(&li);
 		auto start = std::chrono::steady_clock::now();
 
 		alg(&vec[0], &vec[0]+size);
 
-		//QueryPerformanceCounter(&li2);
 		auto end = std::chrono::steady_clock::now();
 		auto diff = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start);
 		
