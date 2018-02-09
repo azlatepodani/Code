@@ -244,12 +244,27 @@ static bool call_string_callback(parser_base_t& p, char* start, char * end,
 // assumes that '"' was already parsed
 static bool parseString(parser_base_t& p, char * first, char * last, ParserTypes report_type)
 {
-	auto n = last-first;
 	auto start = first;
 	auto cur = first;
+	char c;
 	
-	for (;n;--n) {
-		auto c = *first;
+	// Don't copy unless necessary -> find first escape
+	for (;first != last; ++first) {
+		c = *first;
+		// end of string
+		if (c == '"') {
+			p.parsed = first+1;
+			return call_string_callback(p, start, first, report_type);
+		}
+		
+		if (c == '\\') {
+			cur = first;
+			goto _escape_seq;
+		}
+	}
+	
+	for (;first != last; ++first) {
+		c = *first;
 		// end of string
 		if (c == '"') {
 			p.parsed = first+1;
@@ -259,14 +274,13 @@ static bool parseString(parser_base_t& p, char * first, char * last, ParserTypes
 		// copy normal character
 		if (c != '\\') {
 			*cur++ = c;
-			first++;
 			continue;
 		}
 
+_escape_seq:
 		// process escape sequence
 		first++;
-		n--;
-		if (!n) return parse_error(p, No_string_end, start-1);
+		if (first == last) return parse_error(p, No_string_end, start-1);
 		
 		c = *first;
 		if (c != 'u') {
@@ -292,7 +306,6 @@ static bool parseString(parser_base_t& p, char * first, char * last, ParserTypes
 				return parse_error(p, Invalid_escape, first);
 			}
 			
-			first++;
 			cur++;
 		}
 		else {
@@ -300,8 +313,7 @@ static bool parseString(parser_base_t& p, char * first, char * last, ParserTypes
 				return false;
 			}
 			
-			first = p.parsed;
-			n = last - first + 1;	// + 1 is needed for the decrement of the for loop
+			first = p.parsed - 1; // - 1 is needed for the increment of the for loop
 		}
 	}
 	
