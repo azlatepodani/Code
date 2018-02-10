@@ -292,7 +292,7 @@ static void json_writer_imp(std::string& stm, const JsonValue& val) {
 
 
 static const struct num_size_t {
-	unsigned long val;
+	uint32_t val;
 	size_t size;
 } g_tabl[] = {
 	{ 10, 1 },
@@ -307,9 +307,9 @@ static const struct num_size_t {
 };
 
 
-static size_t number_size(long num) {
-	unsigned long n;
-	int negative = 0;
+static size_t number_size(int32_t num) {
+	uint32_t n;
+	int32_t negative = 0;
 	
 	if (num >= 0) n = num;
 	else {
@@ -319,7 +319,7 @@ static size_t number_size(long num) {
 	}
 	
 	auto tabend = g_tabl + sizeof(g_tabl) / sizeof(g_tabl[0]);
-	auto pos = std::lower_bound(g_tabl, tabend, n, [](const num_size_t& el, unsigned long num)
+	auto pos = std::lower_bound(g_tabl, tabend, n, [](const num_size_t& el, uint32_t num)
 	{
 		return num >= el.val;
 	});
@@ -329,7 +329,7 @@ static size_t number_size(long num) {
 
 
 static const struct num_size_ll_t {
-	unsigned long long val;
+	uint64_t val;
 	size_t size;
 } g_tabll[] = {
 	{ 10000000000LL, 10 },
@@ -344,12 +344,12 @@ static const struct num_size_ll_t {
 };
 
 
-static size_t number_size(long long num) {
-	int negative = 0;
+static size_t number_size(int64_t num) {
+	int32_t negative = 0;
 	
-	unsigned long long n;
+	uint64_t n;
 	
-	if (num >= -2147483647 && num <= 2147483647) return number_size(long(num));
+	if (num >= -2147483647 && num <= 2147483647) return number_size(int32_t(num));
 	
 	if (num >= 0) n = num;
 	else {
@@ -359,7 +359,7 @@ static size_t number_size(long long num) {
 	}
 	
 	auto tabend = g_tabll + sizeof(g_tabll) / sizeof(g_tabll[0]);
-	auto pos = std::lower_bound(g_tabll, tabend, n, [](const num_size_ll_t& el, unsigned long long num)
+	auto pos = std::lower_bound(g_tabll, tabend, n, [](const num_size_ll_t& el, uint64_t num)
 	{
 		return num >= el.val;
 	});
@@ -443,7 +443,7 @@ static size_t json_writer_size(const JsonValue& val) {
 
 static bool needEscape(char ch)
 {
-    if ((unsigned char)ch < 0x20) {
+    if ((uint8_t)ch < 0x20) {
         return true;
     }
 
@@ -475,7 +475,7 @@ static const char * escape(char ch)
 	if (ch == '"') return "\\\"";
 	if (ch == '\\') return "\\\\";
 	
-    if (unsigned(ch) < 0x20) {
+    if (uint32_t(ch) < 0x20) {
         return esctab[ch];
     }
 

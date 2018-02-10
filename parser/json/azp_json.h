@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstdint>
+
+
 namespace azp {
 	
 	
@@ -61,7 +64,7 @@ enum ParserErrors {
 
 
 union value_t {
-	long long integer;
+	int64_t integer;
 	double number;
 	struct _s_t {
 		const char* p;	// this pointer is not valid after the callback returns
@@ -85,8 +88,8 @@ struct parser_base_t {
 	char * parsed;			// position after the last character parsed
 	void * context;			// callback context
 	parser_callback_t callback;	// user callback
-	int recursion;			// current nesting level
-	int max_recursion;		// maximum nesting level
+	int32_t recursion;			// current nesting level
+	int32_t max_recursion;		// maximum nesting level
 	ParserErrors error;		// error hint
 	size_t err_position;	// error position
 	const char * _first;	// saved pointer to buffer start
@@ -106,11 +109,11 @@ public:
 	}
 
 	// maxr should be > 0.
-	void set_max_recursion(int maxr) {
+	void set_max_recursion(int32_t maxr) {
 		max_recursion = maxr;
 	}
 	
-	int get_max_recursion() const {
+	int32_t get_max_recursion() const {
 		return max_recursion;
 	}
 	

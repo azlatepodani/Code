@@ -43,7 +43,7 @@ struct JsonValue {
 	
 	union Impl {
 		char          buf[sizeof(JsonString)];
-		long long  	  number;
+		int64_t  	  number;
 		double        float_num;
 		string_view_t view;
 	} u;
@@ -56,7 +56,7 @@ struct JsonValue {
 	explicit JsonValue(std::nullptr_t) noexcept;
 	explicit JsonValue(JsonObject obj);
 	explicit JsonValue(JsonArray arr);
-	explicit JsonValue(long long num) noexcept;
+	explicit JsonValue(int64_t num) noexcept;
 	explicit JsonValue(double num) noexcept;
 	explicit JsonValue(JsonString str) noexcept;
 	explicit JsonValue(const char* str);
@@ -155,10 +155,10 @@ inline JsonValue::JsonValue(JsonArray arr)
 	new (u.buf) JsonArray(std::move(arr));
 }
 
-inline JsonValue::JsonValue(long long num) noexcept
+inline JsonValue::JsonValue(int64_t num) noexcept
 	: type(NUMBER)
 {
-	new (&u.number) long long(num);
+	new (&u.number) int64_t(num);
 }
 
 inline JsonValue::JsonValue(double num) noexcept

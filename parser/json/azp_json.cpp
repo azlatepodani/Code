@@ -76,9 +76,9 @@ static bool parseJsonScalarV(parser_base_t& p, char * first, char * last);
 
 
 struct dec_on_exit {
-	dec_on_exit(int& val) : val(val) {}
+	dec_on_exit(int32_t& val) : val(val) {}
 	~dec_on_exit() { --val; }
-	int& val;
+	int32_t& val;
 };
 
 
@@ -118,12 +118,12 @@ static char * skip_wspace(char * first, char * last) {
 
 
 inline bool isDigit(char c) {
-	return (unsigned(c) - '0') < 10;	// if 'c' isn't in ('0' .. '9'), the result is >= 10
+	return (uint32_t(c) - '0') < 10;	// if 'c' isn't in ('0' .. '9'), the result is >= 10
 }
 
 
 inline bool isHexAlpha(char c) {
-	return ((unsigned(c)|0x20) - 'a') <= ('f' - 'a');	// convert capital letters to small letters and test
+	return ((uint32_t(c)|0x20) - 'a') <= ('f' - 'a');	// convert capital letters to small letters and test
 }
 
 
@@ -131,7 +131,7 @@ inline bool isHexAlpha(char c) {
 static bool unescapeUnicodeChar(parser_base_t& p, char * first, char * last, char ** pCur) {
 	if (last-first < 4) return parse_error(p, Invalid_escape, first);
 	
-	unsigned u32 = 0;
+	uint32_t u32 = 0;
 	
 	//
 #define load_hex() 								\
@@ -435,7 +435,7 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 
 // assumes 't' was already parsed
 static bool parseTrue(parser_base_t& p, char * first, char * last) {
-	unsigned v;
+	uint32_t v;
 	
 	if (last-first < 4) {
 		if (last-first < 3) {
@@ -443,11 +443,11 @@ static bool parseTrue(parser_base_t& p, char * first, char * last) {
 		}
 		
 		v = *first;
-		v |= unsigned(first[1]) << 8;
-		v |= unsigned(first[2]) << 16;
+		v |= uint32_t(first[1]) << 8;
+		v |= uint32_t(first[2]) << 16;
 	}
 	else {
-		v = *(unsigned *)first & 0xFFFFFF;
+		v = *(uint32_t *)first & 0xFFFFFF;
 	}
 	
 	if (v != '\0eur') return parse_error(p, Invalid_token, first-1);
@@ -462,7 +462,7 @@ static bool parseTrue(parser_base_t& p, char * first, char * last) {
 static bool parseFalse(parser_base_t& p, char * first, char * last) {
 	if (last-first < 4) return parse_error(p, Invalid_token, first-1);
 	
-	unsigned v = *(unsigned *)first;
+	uint32_t v = *(uint32_t *)first;
 	
 	if (v != 'esla') return parse_error(p, Invalid_token, first-1);
 	
@@ -474,7 +474,7 @@ static bool parseFalse(parser_base_t& p, char * first, char * last) {
 
 // assumes 'n' was already parsed
 static bool parseNull(parser_base_t& p, char * first, char * last) {
-	unsigned v;
+	uint32_t v;
 	
 	if (last-first < 4) {
 		if (last-first < 3) {
@@ -482,11 +482,11 @@ static bool parseNull(parser_base_t& p, char * first, char * last) {
 		}
 		
 		v = *first;
-		v |= unsigned(first[1]) << 8;
-		v |= unsigned(first[2]) << 16;
+		v |= uint32_t(first[1]) << 8;
+		v |= uint32_t(first[2]) << 16;
 	}
 	else {
-		v = *(unsigned *)first & 0xFFFFFF;
+		v = *(uint32_t *)first & 0xFFFFFF;
 	}
 	
 	if (v != '\0llu') return parse_error(p, Invalid_token, first-1);
