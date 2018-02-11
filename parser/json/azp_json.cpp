@@ -82,6 +82,7 @@ struct dec_on_exit {
 };
 
 
+// parses a JSON value
 static bool parseJson(parser_base_t& p, char * first, char * last) {
 	if (++p.recursion >= p.max_recursion) return parse_error(p, Max_recursion, first);
 	
@@ -261,6 +262,9 @@ static bool parseString(parser_base_t& p, char * first, char * last, ParserTypes
 			cur = first;
 			goto _escape_seq;
 		}
+		
+		// these values should have been escaped
+		if ((uint8_t)c < 0x20) return parse_error(p, Invalid_char, first);
 	}
 	
 	for (;first != last; ++first) {
@@ -273,6 +277,9 @@ static bool parseString(parser_base_t& p, char * first, char * last, ParserTypes
 		
 		// copy normal character
 		if (c != '\\') {
+			// these values should have been escaped
+			if ((uint8_t)c < 0x20) return parse_error(p, Invalid_char, first);
+			
 			*cur++ = c;
 			continue;
 		}
@@ -324,7 +331,7 @@ _escape_seq:
 // assumes first != last
 static bool parseNumber(parser_base_t& p, char * first, char * last) {
 	char buf[336]; // longest valid long long string "-9223372036854775807" (19 + 1)
-				   // longest valid double string length is ~330 chars long
+				   // longest valid double string length is ~330 chars long. TODO: check standard
 				   // 336 was selected because is divisible by 8 (stack alignment size on x64)
 	size_t cur = 0;
 	char * savedFirst = first;

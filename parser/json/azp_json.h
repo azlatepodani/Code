@@ -59,6 +59,7 @@ enum ParserErrors {
 	Unbalanced_collection,	// the '[', ']', '{', '}' weren't paired correctly
 	Expected_key,			// inside an object, at the error position, a key was expected
 	Expected_colon,			// inside an object, at the error position, a ':' character was expected
+	Invalid_char,			// a char code < 32 was encountered
 	Max_errors,
 };
 
