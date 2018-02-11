@@ -5,10 +5,14 @@
 #include <algorithm>
 #include <vector>
 #include <random>
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include "ska\ska_sort.hpp"
-
+#include <iostream>
+#include <chrono>
+#include <ratio>
+#if defined(_MSC_VER)
+	#define WIN32_LEAN_AND_MEAN
+	#include <windows.h>
+#endif // _MSC_VER
+#include "ska/ska_sort.hpp"
 
 
 
@@ -67,6 +71,24 @@ void gen_random_string_array(int n, int min_len, int max_len,
 	}
 }
 
+
+void gen_random_string_array(int n, int min_len, int max_len,
+							 std::vector<wchar_t *>& vec,
+							 std::mt19937& g)
+{
+	auto x = std::uniform_int_distribution<int>(32,0xD7FF);
+	auto y = std::uniform_int_distribution<int>(min_len, max_len);
+	
+	for (int i=0; i<n; ++i) {
+		int len = y(g);
+		wchar_t * s = new wchar_t[len];
+		for (int j=0; j<len; ++j) {
+			s[j] = x(g);
+		}
+		vec.emplace_back(std::move(s));
+	}
+}
+
 	template <typename U> struct other { typedef U type; };
 	template <> struct other<int8_t> { typedef int type; };
 	template <> struct other<uint8_t> { typedef int type; };
@@ -78,7 +100,7 @@ void gen_random_int_array(int n, T min_v, T max_v,
 							 std::mt19937& g)
 {
 
-	auto x = std::uniform_int_distribution<other<T>::type>(min_v, max_v);
+	auto x = std::uniform_int_distribution<typename other<T>::type>(min_v, max_v);
 	
 	for (int i=0; i<n; ++i) {
 		vec.emplace_back(x(g));
@@ -86,56 +108,56 @@ void gen_random_int_array(int n, T min_v, T max_v,
 }
 
 
-
 template <typename T, typename Fn>
-void benchmark(int size, char * desc, std::vector<T>& vec, std::mt19937& g, Fn alg)
+void benchmark(int size, const char * desc, std::vector<T>& vec, std::mt19937& g, Fn alg)
 {
 	long long time = 0;
-	LARGE_INTEGER li, li2, freq;
 	
-	QueryPerformanceFrequency(&freq);
-	 
 	std::shuffle(vec.begin(), vec.begin()+size, g);
 	std::vector<T> backup(vec.begin(), vec.begin()+size);
 	alg(&vec[0], &vec[0]+size);
 	
-	if (!std::is_sorted(&vec[0], &vec[0]+size)) __debugbreak();
-	
 	int i=0;
-	int maxi = 15;//00000 / size;
+	int maxi = 15;
 	for (; i<maxi; ++i) {
 		vec = std::vector<T>(backup.begin(), backup.begin()+size);
-		QueryPerformanceCounter(&li);
+		auto start = std::chrono::steady_clock::now();
 
 		alg(&vec[0], &vec[0]+size);
 
-		QueryPerformanceCounter(&li2);
+		auto end = std::chrono::steady_clock::now();
+		auto diff = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start);
 		
-		time += li2.QuadPart - li.QuadPart;
-		if (time/freq.QuadPart > 8) break;
+		time += diff.count();
+		if (time/1000000 > 8000) break;
 	}
 
 	
-	time = time * 1000000 / (freq.QuadPart * i);
-	printf("%s %d  time=%dus,  time/n=%f, time/nlogn=%f\n", desc, size, (int)time, 
-				float(time)/size, float(time/(size*19.931568569324)));
+	time = time / i / 1000;
+	printf("%s %d  time=%dus\n", desc, size, (int)time);
 }
 
 template <typename T, typename Fn>
-void benchmark(char * desc, std::vector<T>& vec, std::mt19937& g, Fn alg)
+void benchmark(const char * desc, std::vector<T>& vec, std::mt19937& g, Fn alg)
 {
 	benchmark(vec.size(), desc, vec, g, alg);
 }
 
 
-void main() {
+int main() {
+	
+
 	std::mt19937 g(0xCC6699);
+	
+	
+	
 		 
-	 
+#if defined(_MSC_VER)
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 	if (GetThreadPriority(GetCurrentThread()) != THREAD_PRIORITY_HIGHEST) printf("Priority set failed\n");
 	 
 	if (!SetThreadAffinityMask(GetCurrentThread(), 1)) printf("Affinity set failed\n");
+#endif
 	 
 	{
 	std::vector<uint8_t> vec1;
@@ -161,7 +183,7 @@ void main() {
 	std::vector<int32_t> vec8;
 	gen_random_int_array<int32_t>(1500000, 0x80000000, 0x7FFFFFFF, vec8, g);
 	benchmark("v int32", vec8, g, [](int32_t* f, int32_t* l){ska_sort(f,l);});
-	}{
+	}{//*/
 	std::vector<std::string> vec5;
 	gen_random_string_array(50000, 2, 10240, vec5, g);
 	benchmark("v string", vec5, g, [](std::string* f, std::string* l){ska_sort(f,l);});
@@ -170,16 +192,9 @@ void main() {
 	gen_random_string_array(50000, 2, 10240, vec6, g);
 	benchmark("v wstring", vec6, g, [](std::wstring* f, std::wstring* l){ska_sort(f,l);});
 	}
-		
-	/*benchmark("s uint8", vec2, g, [](uint8_t* f, uint8_t* l){std::sort(f,l);});
-	benchmark("s int8", vec2, g, [](int8_t* f, int8_t* l){std::sort(f,l);});
-	benchmark("s uint16", vec3, g, [](uint16_t* f, uint16_t* l){std::sort(f,l);});
-	benchmark("s int16", vec4, g, [](int16_t* f, int16_t* l){std::sort(f,l);});//*/
-	//benchmark("s string", vec5, g, [](std::string* f, std::string* l){std::sort(f,l);});
-	//benchmark("s wstring", vec6, g, [](std::wstring* f, std::wstring* l){std::sort(f,l);});//
-	
 	
 	printf("\n");
+	return 0;
 }
 
 

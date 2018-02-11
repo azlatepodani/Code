@@ -1,4 +1,5 @@
 #pragma once
+#include <string.h>
 
 
 //
@@ -80,7 +81,7 @@ struct ExtractLowByte {
 	}
 	
 	uint8_t operator()(int16_t val) CST_NEX {
-		return ((uint16_t)val + 0x8000) & 0xFF;
+		return (uint16_t)val & 0xFF;
 	}
 };
 
@@ -110,6 +111,22 @@ struct ExtractLowWord {
 	}
 };
 
+
+template <typename Str>
+struct key_type {
+	using type = uint8_t;
+};
+
+template <>
+struct key_type<std::wstring> {
+	using type = uint16_t;
+};
+
+template <>
+struct key_type<wchar_t*> {
+	using type = uint16_t;
+};
+
 //
 // Functor for string values, returns a (w)char at a given position
 //
@@ -123,23 +140,8 @@ struct ExtractStringChar {
 		: offset(offset)
 	{ }
 	
-	template <typename String>
-	struct key_type {
-		using type = uint8_t;
-	};
-	
-	template <>
-	struct key_type<std::wstring> {
-		using type = uint16_t;
-	};
-	
-	template <>
-	struct key_type<wchar_t*> {
-		using type = uint16_t;
-	};
-	
-	template <typename String>
-	using key_type_t = typename key_type<String>::type;
+	template <typename Str>
+	using key_type_t = typename key_type<Str>::type;
 	
 	key_type_t<String>
 	operator()(const String& str) CST_NEX {
