@@ -120,17 +120,25 @@ JsonValue& JsonValue::operator=(JsonValue&& other) noexcept {
 		;	// nothing to do
 	}
 	
+	type = other.type;
+	
 	switch (other.type) {
 		case OBJECT:
-			new (u.buf) JsonObject(std::move(other.object()));
+			//new (u.buf) JsonObject(std::move(other.object()));
+			memcpy(u.buf, other.u.buf, sizeof(JsonObject));	// avoid unnecessary writebacks
+			other.type = EMPTY;	// prevent destruction of JsonObject.
 			break;
 
 		case ARRAY:
-			new (u.buf) JsonArray(std::move(other.array()));
+			//new (u.buf) JsonArray(std::move(other.array()));
+			memcpy(u.buf, other.u.buf, sizeof(JsonArray));
+			other.type = EMPTY;
 			break;
 			
 		case STRING:
-			_initString(std::move(other.string()));
+			//_initString(std::move(other.string()));
+			memcpy(u.buf, other.u.buf, sizeof(JsonString));
+			other.type = EMPTY;
 			break;
 			
 		case STRING_VIEW:
@@ -150,8 +158,6 @@ JsonValue& JsonValue::operator=(JsonValue&& other) noexcept {
 		default: // case EMPTY:
 		;	// nothing to do
 	}
-	
-	type = other.type;
 
 	return *this;
 }
