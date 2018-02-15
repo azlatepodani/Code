@@ -124,21 +124,15 @@ JsonValue& JsonValue::operator=(JsonValue&& other) noexcept {
 	
 	switch (other.type) {
 		case OBJECT:
-			//new (u.buf) JsonObject(std::move(other.object()));
-			memcpy(u.buf, other.u.buf, sizeof(JsonObject));	// avoid unnecessary writebacks
-			other.type = EMPTY;	// prevent destruction of JsonObject.
+			new (u.buf) JsonObject(std::move(other.object()));
 			break;
 
 		case ARRAY:
-			//new (u.buf) JsonArray(std::move(other.array()));
-			memcpy(u.buf, other.u.buf, sizeof(JsonArray));
-			other.type = EMPTY;
+			new (u.buf) JsonArray(std::move(other.array()));
 			break;
 			
 		case STRING:
-			//_initString(std::move(other.string()));
-			memcpy(u.buf, other.u.buf, sizeof(JsonString));
-			other.type = EMPTY;
+			_initString(std::move(other.string()));
 			break;
 			
 		case STRING_VIEW:
@@ -452,15 +446,10 @@ static bool needEscape(char ch)
     if ((uint8_t)ch < 0x20) {
         return true;
     }
+	
+	if (ch == '"' || ch == '\\') return true;
 
-    switch (ch) {
-        case '"':
-        case '\\':
-            return true;
-
-        default:
-            return false;
-    }
+	return false;
 }
 
 
@@ -475,17 +464,15 @@ static const char * const esctab[0x20] = {
         "\\u001c", "\\u001d", "\\u001e", "\\u001f",
     };
 
-	
-static const char * escape(char ch)
+
+static void escape(std::string& dst, char ch)
 {
-	if (ch == '"') return "\\\"";
-	if (ch == '\\') return "\\\\";
+	if (ch == '"') { dst.append("\\\"", 2); return; }
+	if (ch == '\\') { dst.append("\\\\", 2); return; }
 	
     if (uint32_t(ch) < 0x20) {
-        return esctab[ch];
+        dst.append(esctab[ch], 6);
     }
-
-    return "";
 }
 
 
@@ -505,7 +492,7 @@ static void jsonEscape(const char* src, size_t len, std::string& dst)
         }
 
         dst.append(src, stop);
-        dst.append(escape(*stop));
+		escape(dst, *stop);
 
         src = stop+1;
     }

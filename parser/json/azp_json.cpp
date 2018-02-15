@@ -328,18 +328,132 @@ _escape_seq:
 }
 
 
+// assumes last == first + max_len + 1 (see parseNumber)
+// 'max_len' is the longest string for floating numbers accepted
+static bool parseNumberNoCopy(parser_base_t& p, char * first, char * last) {
+	char * cur = first;
+	char * savedFirst = first;
+		
+	auto savedCh = *(last-1);
+	*(last-1) = 0; // sentinel
+	
+	// optional '-' sign
+	if (*first == '-') {
+		cur++;
+		first++;
+	}
+
+	bool haveDigit = false;
+	bool leadingZero = false;
+	bool haveDot = false;
+	bool haveExp = false;
+	bool haveDotDigit = false;
+	bool haveExpDigit = false;
+
+	if (*first == '0') {	// no leading zeros allowed
+		cur++;
+		first++;	// valid input: 0, 0.x, 0ex
+		haveDigit = true;
+		leadingZero = true;
+	}
+	else {
+		// digits
+		while (isDigit(*first)) {
+			cur++;
+			first++;
+			haveDigit = true;
+		}
+	}
+	
+	// optional '.<digits>'
+	if (*first == '.') {
+		haveDot = true;
+		leadingZero = false;
+		cur++;
+		first++;
+		
+		// optional digits after the dot
+		while (isDigit(*first)) {
+			cur++;
+			first++;
+			haveDotDigit = true;
+		}
+	}
+	
+	// optional 'e[sign]<digits>'
+	if ((*first|0x20) == 'e') {
+		haveExp = true;
+		leadingZero = false;
+		
+		cur++;
+		first++;
+
+		// optional +/- signs
+		if (*first == '-' || *first == '+') {
+			cur++;
+			first++;
+		}
+	
+		// digits after the exponent
+		while (isDigit(*first)) {
+			cur++;
+			first++;
+			haveExpDigit = true;
+		}
+	}
+	
+	*(last-1) = savedCh;	// replace the sentinel with the saved character
+
+	if (haveDot && !haveExp && !haveDotDigit ||
+		haveExp && !haveExpDigit ||
+		!haveDigit)
+	{
+		return parse_error(p, Invalid_number, savedFirst);
+	}
+
+	savedCh = *cur;
+	*cur = 0;
+	
+	bool result;
+	if (haveDot | haveExp) {		
+		value_t val;
+		val.number = strtod(savedFirst, nullptr);
+		if (val.number == HUGE_VAL) {
+			return parse_error(p, Invalid_number, savedFirst);
+		}
+		
+		result = wrap_user_callback(Number_float, val, first);
+	}
+	else {
+		value_t val;
+		val.integer = strtoll(savedFirst, nullptr, 10);
+		if ((val.integer == LLONG_MAX || val.integer ==  LLONG_MIN) && (errno == ERANGE)) {
+			return parse_error(p, Invalid_number, savedFirst);
+		}
+		
+		result = wrap_user_callback(Number_int, val, first);
+	}
+	
+	*cur = savedCh;
+	
+	p.parsed = first;
+	return result;
+}
+
+
 // assumes first != last
 static bool parseNumber(parser_base_t& p, char * first, char * last) {
-	char buf[336]; // longest valid long long string "-9223372036854775807" (19 + 1)
-				   // longest valid double string length is ~330 chars long. TODO: check standard
-				   // 336 was selected because is divisible by 8 (stack alignment size on x64)
+	constexpr size_t max_len = 24; // longest valid long long string "-9223372036854775807" (19+1)
+	                               // longest valid double string "-1.1111111111111112e+300" (24)
+	
+	if (last - first > max_len) {
+		// adjust last so that we don't attempt to parse more than the buffer size
+		return parseNumberNoCopy(p, first, first+max_len+1);
+	}
+
+	char buf[32];
 	size_t cur = 0;
 	char * savedFirst = first;
-	
-	if (last - first > sizeof(buf) - 1) {
-		// adjust last so that we don't attempt to parse more than the buffer size
-		last = first + sizeof(buf) - 1;
-	}
 	
 	auto savedCh = *(last-1);
 	*(last-1) = 0; // sentinel
