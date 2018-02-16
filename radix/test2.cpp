@@ -6,12 +6,14 @@
 #include <vector>
 #include <random>
 #include <iostream>
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include "algorithm.h"
+#include <chrono>
+#include <ratio>
+#if defined(_MSC_VER)
+	#define WIN32_LEAN_AND_MEAN
+	#include <windows.h>
+#endif // _MSC_VER
+#include "radix_sort.h"
 
-
-#pragma warning(disable: 4244 4309 4267 4239)
 
 
 using namespace azp;
@@ -102,7 +104,7 @@ void gen_random_int_array(int n, T min_v, T max_v,
 							 std::mt19937& g)
 {
 
-	auto x = std::uniform_int_distribution<other<T>::type>(min_v, max_v);
+	auto x = std::uniform_int_distribution<typename other<T>::type>(min_v, max_v);
 	
 	for (int i=0; i<n; ++i) {
 		vec.emplace_back(x(g));
@@ -133,51 +135,48 @@ void print<const wchar_t*>(const wchar_t* const& l, const wchar_t* const& r) {
 }
 
 template <typename T, typename Fn>
-void benchmark(int size, char * desc, std::vector<T>& vec, std::mt19937& g, Fn alg)
+void benchmark(int size, const char * desc, std::vector<T>& vec, std::mt19937& g, Fn alg)
 {
 	long long time = 0;
-	LARGE_INTEGER li, li2, freq;
-	
-	QueryPerformanceFrequency(&freq);
 	 
 	std::shuffle(vec.begin(), vec.begin()+size, g);
 	std::vector<T> backup(vec.begin(), vec.begin()+size);
 	alg(&vec[0], &vec[0]+size);
-	//if (!std::is_sorted(&vec[0], &vec[0]+size)) __debugbreak();
-	for (auto& l=vec.begin(), r=l+1; r != vec.end(); ++l,++r) {
-		if (*r < *l) {
+
+	for (auto l=vec.begin(), r=l+1; r != vec.end(); ++l,++r) {
+		if (compare(*r, *l, 0)) {
 			print(*l, *r);
 		}
 	}
 	
 	int i=0;
-	int maxi = 20;//00000 / size;
+	int maxi = 15;
 	for (; i<maxi; ++i) {
 		vec = std::vector<T>(backup.begin(), backup.begin()+size);
-		QueryPerformanceCounter(&li);
+		auto start = std::chrono::steady_clock::now();
 
 		alg(&vec[0], &vec[0]+size);
 
-		QueryPerformanceCounter(&li2);
+		auto end = std::chrono::steady_clock::now();
+		auto diff = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start);
 		
-		time += li2.QuadPart - li.QuadPart;
-		if (time/freq.QuadPart > 8) break;
+		time += diff.count();
+		if (time/1000000 > 8000) break;
 	}
 
 	
-	time = time * 1000000 / (freq.QuadPart * i);
-	printf("%s %d  time=%dus,  time/n=%f, time/nlogn=%f\n", desc, size, (int)time, 
-				float(time)/size, float(time/(size*19.931568569324)));
+	time = time / i / 1000;
+	printf("%s %d  time=%dus\n", desc, size, (int)time);
 }
 
 template <typename T, typename Fn>
-void benchmark(char * desc, std::vector<T>& vec, std::mt19937& g, Fn alg)
+void benchmark(const char * desc, std::vector<T>& vec, std::mt19937& g, Fn alg)
 {
 	benchmark(vec.size(), desc, vec, g, alg);
 }
 
 
-void main() {
+int main() {
 	
 
 	std::mt19937 g(0xCC6699);
@@ -185,11 +184,12 @@ void main() {
 	
 	
 		 
-	 
+#if defined(_MSC_VER)
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 	if (GetThreadPriority(GetCurrentThread()) != THREAD_PRIORITY_HIGHEST) printf("Priority set failed\n");
 	 
 	if (!SetThreadAffinityMask(GetCurrentThread(), 1)) printf("Affinity set failed\n");
+#endif
 	 
 	{
 	std::vector<uint8_t> vec1;
@@ -234,6 +234,6 @@ void main() {
 	}
 	
 	printf("\n");
+	return 0;
 }
-
 
