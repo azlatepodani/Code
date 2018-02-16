@@ -1,6 +1,7 @@
 #pragma once
 #include <utility>
 #include <iterator>
+#include <stddef.h>
 
 
 namespace azp {
@@ -12,7 +13,7 @@ constexpr int sort_threshold = 16;
 template <typename RandIt>
 void rotate_last(RandIt last, RandIt pos) {
 	using std::swap;
-	using T = std::iterator_traits<RandIt>::value_type;
+	using T = typename std::iterator_traits<RandIt>::value_type;
 	
 	T val(std::move(*last));
 	RandIt next = last - 1;
@@ -30,7 +31,7 @@ void rotate_last(RandIt last, RandIt pos) {
 template <typename RandIt>
 void unguarded_linear_insert(RandIt last) {
 	using std::swap;
-	using T = std::iterator_traits<RandIt>::value_type;
+	using T = typename std::iterator_traits<RandIt>::value_type;
 	
 	T val(std::move(*last));
 	RandIt next = last-1;
@@ -48,7 +49,7 @@ void unguarded_linear_insert(RandIt last) {
 template <typename RandIt, typename Compare>
 void unguarded_linear_insert(RandIt last, Compare&& comp) {
 	using std::swap;
-	using T = std::iterator_traits<RandIt>::value_type;
+	using T = typename std::iterator_traits<RandIt>::value_type;
 	
 	T val(std::move(*last));
 	RandIt next = last-1;
@@ -125,14 +126,14 @@ struct insertion_sort_imp2 {
 
 template <typename RandIt>
 void insertion_sort(RandIt first, RandIt last) {
-	using T = std::iterator_traits<RandIt>::value_type;
+	using T = typename std::iterator_traits<RandIt>::value_type;
 	insertion_sort_imp<RandIt, T>()(first, last, *first);
 }
 
 
 template <typename RandIt, typename Compare>
 void insertion_sort(RandIt first, RandIt last, Compare&& comp) {
-	using T = std::iterator_traits<RandIt>::value_type;
+	using T = typename std::iterator_traits<RandIt>::value_type;
 	insertion_sort_imp2<RandIt, T, Compare>()(first, last, comp, *first);
 }
 
