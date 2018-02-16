@@ -11,6 +11,8 @@
 #include "algorithm.h"
 
 
+#pragma warning(disable: 4244 4309 4267 4239)
+
 
 using namespace azp;
 
@@ -192,31 +194,31 @@ void main() {
 	{
 	std::vector<uint8_t> vec1;
 	gen_random_int_array<uint8_t>(1500000, 0, 255, vec1, g);
-	benchmark("v uint8", vec1, g, [](uint8_t* f, uint8_t* l){azp::sort(f,l);});
+	benchmark("v uint8", vec1, g, [](uint8_t* f, uint8_t* l){azp::sort(f,l,std::less<uint8_t>());});
 	}{
 	std::vector<int8_t> vec2;
 	gen_random_int_array<int8_t>(1500000, -128, 127, vec2, g);
-	benchmark("v int8", vec2, g, [](int8_t* f, int8_t* l){azp::sort(f,l);});
+	benchmark("v int8", vec2, g, [](int8_t* f, int8_t* l){azp::sort(f,l,std::less<int8_t>());});
 	}{
 	std::vector<uint16_t> vec3;
 	gen_random_int_array<uint16_t>(1500000, 0, 0xFFFF, vec3, g);
-	benchmark("v uint16", vec3, g, [](uint16_t* f, uint16_t* l){azp::sort(f,l);});
+	benchmark("v uint16", vec3, g, [](uint16_t* f, uint16_t* l){azp::sort(f,l,std::less<uint16_t>());});
 	}{
 	std::vector<int16_t> vec4;
 	gen_random_int_array<int16_t>(1500000, 0x8000, 0x7FFF, vec4, g);
-	benchmark("v int16", vec4, g, [](int16_t* f, int16_t* l){azp::sort(f,l);});
+	benchmark("v int16", vec4, g, [](int16_t* f, int16_t* l){azp::sort(f,l,std::less<int16_t>());});
 	}{
 	std::vector<uint32_t> vec7; 
 	gen_random_int_array<uint32_t>(1500000, 0, 0xFFFFFFFF, vec7, g);
-	benchmark("v uint32", vec7, g, [](uint32_t* f, uint32_t* l){azp::sort(f,l);});
+	benchmark("v uint32", vec7, g, [](uint32_t* f, uint32_t* l){azp::sort(f,l,std::less<uint32_t>());});
 	}{
 	std::vector<int32_t> vec8;
 	gen_random_int_array<int32_t>(1500000, 0x80000000, 0x7FFFFFFF, vec8, g);
-	benchmark("v int32", vec8, g, [](int32_t* f, int32_t* l){azp::sort(f,l);});
+	benchmark("v int32", vec8, g, [](int32_t* f, int32_t* l){azp::sort(f,l,std::less<int32_t>());});
 	}{//*/
 	std::vector<std::string> vec5;
 	gen_random_string_array(50000, 2, 10240, vec5, g);
-	benchmark("v string", vec5, g, [](std::string* f, std::string* l){azp::sort(f,l);});
+	benchmark("v string", vec5, g, [](std::string* f, std::string* l){azp::sort(f,l,std::less<std::string>());});
 	// }{
 	// std::vector<char *> vec9;
 	// gen_random_string_array(50000, 2, 10240, vec9, g);
@@ -224,7 +226,7 @@ void main() {
 	}{
 	std::vector<std::wstring> vec6;
 	gen_random_string_array(50000, 2, 10240, vec6, g);
-	benchmark("v wstring", vec6, g, [](std::wstring* f, std::wstring* l){azp::sort(f,l);});
+	benchmark("v wstring", vec6, g, [](std::wstring* f, std::wstring* l){azp::sort(f,l,std::less<std::wstring>());});
 	// }{
 	// std::vector<wchar_t *> vec10;
 	// gen_random_string_array(50000, 2, 10240, vec10, g);

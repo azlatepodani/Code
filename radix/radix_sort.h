@@ -77,7 +77,7 @@ inline void radix_sort(uint16_t* first, uint16_t* last) NEX {
 	partitions_t partitions = radix_pass_basic(first, last, ExtractHighByte());
 	
 	int32_t pos = 0;
-	for (int i=0; i<256; ++i) {
+	for (int32_t i=0; i<256; ++i) {
 		auto ep = partitions[i].next_offset;
 		auto diff = ep-pos;
 		if (diff > 150) {
@@ -180,7 +180,7 @@ inline void radix_sort(int32_t* first, int32_t* last) NEX
 //  1. The range [first, last) will have less than INT_MAX elements
 //
 template <typename String>
-void radix_string(String* first, String* last, int round) NEX {
+void radix_string(String* first, String* last, int32_t round) NEX {
 	radix_pass_recurse(first, last, ExtractStringChar<String>(round),
 		[round](String* first, String* last) {
 			radix_string(first, last, round+1);
@@ -214,7 +214,7 @@ inline void radix_sort(char** first, char** last) NEX {
 //  1. The range [first, last) will have less than INT_MAX elements
 //
 template <typename WString>
-void radix_wstring(WString* first, WString* last, int round) NEX
+void radix_wstring(WString* first, WString* last, int32_t round) NEX
 {
 	radix_pass_recurse(first, last, compose_ch<WString>(ExtractHighByte(),
 		ExtractStringChar<WString>(round)),

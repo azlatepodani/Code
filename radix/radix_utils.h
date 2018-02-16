@@ -1,5 +1,6 @@
 #pragma once
 #include <string.h>
+#include "algorithm.h"
 
 
 //
@@ -30,7 +31,7 @@ using recurse_table_t = std::array<std::pair<int32_t, int32_t>, 257>;
 
 
 using scalar_key_t = bool;
-using vector_key_t = int;
+using vector_key_t = int32_t;
 
 //
 // The following types implement the ExtractKey concept's requirements
@@ -136,7 +137,7 @@ struct ExtractStringChar {
 	typedef String value_type;
 	typedef vector_key_t use_round;
 	
-	explicit ExtractStringChar(int offset) NEX
+	explicit ExtractStringChar(int32_t offset) NEX
 		: offset(offset)
 	{ }
 	
@@ -148,7 +149,7 @@ struct ExtractStringChar {
 		return str[offset];
 	}
 
-	const int offset;
+	const int32_t offset;
 };
 
 //
@@ -178,10 +179,10 @@ struct partition_t {
 	{ }
 	
 	union {
-		int count;
-		int offset;
+		int32_t count;
+		int32_t offset;
 	};
-	int next_offset;
+	int32_t next_offset;
 };
 
 using partitions_t = std::array<partition_t, 256>;
@@ -213,15 +214,15 @@ partitions_t compute_counts(RandomIt first, RandomIt last, ExtractKey&& ek) NEX
 // Preconditions:
 //  1. 'partitions' was initialized by compute_counts()
 //
-inline int compute_ranges(partitions_t& partitions, counters_t& valid_part) NEX
+inline int32_t compute_ranges(partitions_t& partitions, counters_t& valid_part) NEX
 {
-	int sum = partitions[0].count;
+	int32_t sum = partitions[0].count;
 	partitions[0].offset = 0;
 	
-	int vp_size = sum ? 1 : 0;
+	int32_t vp_size = sum ? 1 : 0;
 	valid_part[0] = 0;
 	
-	for (int i=1; i<256; ++i) {
+	for (int32_t i=1; i<256; ++i) {
 		auto count = partitions[i].count;
 
 		partitions[i-1].next_offset = sum;
@@ -243,9 +244,9 @@ inline int compute_ranges(partitions_t& partitions, counters_t& valid_part) NEX
 // A negative index means that the original partition is now processed.
 // @see swap_elements_into_place()
 //
-inline int compress_vp(counters_t& valid_part, int vp_size) {
-	int new_size = 0;
-	int i = 0;
+inline int32_t compress_vp(counters_t& valid_part, int32_t vp_size) {
+	int32_t new_size = 0;
+	int32_t i = 0;
 	
 	while (vp_size--) {
 		if (valid_part[i] >= 0) valid_part[new_size++] = valid_part[i];
@@ -266,7 +267,7 @@ inline int compress_vp(counters_t& valid_part, int vp_size) {
 //
 template <typename RandomIt, typename ExtractKey>
 void swap_elements_into_place(RandomIt first, partitions_t& partitions, counters_t& valid_part,
-							  int vp_size, ExtractKey&& ek) NEX
+							  int32_t vp_size, ExtractKey&& ek) NEX
 {
 	using std::swap;
 	bool sorted = true;
@@ -281,7 +282,7 @@ void swap_elements_into_place(RandomIt first, partitions_t& partitions, counters
 	do {
 		sorted = true;
 		
-		for (int i=0; i<vp_size; ++i)
+		for (int32_t i=0; i<vp_size; ++i)
 		{
 			auto val = partitions[valid_part[i]];
 			
@@ -319,17 +320,17 @@ using compose_cl = compose<ExtractLowByte,  ExtractStringChar<S>>;
 // Helper functions for vector keys
 //
 template <typename S>
-int get_key_round(const compose_ch<S>& ek) NEX {
+int32_t get_key_round(const compose_ch<S>& ek) NEX {
 	return ek.g.offset;
 }
 
 template <typename S>
-int get_key_round(const compose_cl<S>& ek) NEX {
+int32_t get_key_round(const compose_cl<S>& ek) NEX {
 	return ek.g.offset;
 }
 
 template <typename S>
-int get_key_round(const ExtractStringChar<S>& ek) NEX {
+int32_t get_key_round(const ExtractStringChar<S>& ek) NEX {
 	return ek.offset;
 }
 
@@ -338,24 +339,24 @@ int get_key_round(const ExtractStringChar<S>& ek) NEX {
 // identical, so the comparison should start with the next character.
 //
 
-bool compare(const std::string& l, const std::string& r, int round) NEX {
+bool compare(const std::string& l, const std::string& r, int32_t round) NEX {
 	return strcmp(&l[round], &r[round]) < 0;
 }
 
-bool compare(const std::wstring& l, const std::wstring& r, int round) NEX {
+bool compare(const std::wstring& l, const std::wstring& r, int32_t round) NEX {
 	return wcscmp(&l[round], &r[round]) < 0;
 }
 
-bool compare(const char* l, const char* r, int round) NEX {
+bool compare(const char* l, const char* r, int32_t round) NEX {
 	return strcmp(&l[round], &r[round]) < 0;
 }
 
-bool compare(const wchar_t* l, const wchar_t* r, int round) NEX {
+bool compare(const wchar_t* l, const wchar_t* r, int32_t round) NEX {
 	return wcscmp(&l[round], &r[round]) < 0;
 }
 
 template <typename String>
-bool end_of_string(const String& str, int round) NEX {
+bool end_of_string(const String& str, int32_t round) NEX {
 	return str[round] == 0;
 }
 
@@ -367,10 +368,10 @@ template <typename RandomIt, typename ExtractKey, typename NextSort>
 void recurse_depth_first(RandomIt first, const partitions_t& partitions,
 						 ExtractKey&& ek, NextSort&& continuation, vector_key_t) NEX
 {
-	int round = get_key_round(ek);
+	int32_t round = get_key_round(ek);
 	auto begin_offset = 0;
 	
-	for (int i=0; i<256; ++i) {
+	for (int32_t i=0; i<256; ++i) {
 		auto end_offset = partitions[i].next_offset;
 		
 		auto endp = first+end_offset;
@@ -388,7 +389,8 @@ void recurse_depth_first(RandomIt first, const partitions_t& partitions,
 			auto comp = [round](const auto& l, const auto& r) {
 				return compare(l, r, round);
 			};
-			std::sort(pp, endp, comp);
+			//std::sort(pp, endp, comp);
+			azp::sort(pp, endp, comp);
 		}
 		
 		begin_offset = end_offset;
@@ -400,7 +402,8 @@ void recurse_depth_first(RandomIt first, const partitions_t& partitions,
 //
 template <typename RandomIt>
 void call_sort(RandomIt first, RandomIt last) {
-	std::sort(first, last);
+	//std::sort(first, last);
+	azp::sort(first, last);
 }
 
 template <>
@@ -408,7 +411,8 @@ void call_sort<wchar_t**>(wchar_t** first, wchar_t** last) {
 	auto comp = [](const wchar_t* l, const wchar_t* r) {
 		return compare(l, r, 0);
 	};
-	std::sort(first, last, comp);
+	//std::sort(first, last, comp);
+	azp::sort(first, last, comp);
 }
 
 //
@@ -419,7 +423,7 @@ void recurse_depth_first(RandomIt first, const partitions_t& partitions,
 						 ExtractKey&&, NextSort&& continuation, scalar_key_t) NEX
 {
 	auto begin_offset = 0;
-	for (int i=0; i<256; ++i) {
+	for (int32_t i=0; i<256; ++i) {
 		auto end_offset = partitions[i].next_offset;
 		auto diff = end_offset - begin_offset;
 		if (diff > 75) {		// magic number empirically determined
