@@ -560,6 +560,17 @@ static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val
 	auto& cbCtx = *(parser_callback_ctx_t<Allocator> *)ctx;
 	
 	if (!cbCtx.firstCall) {
+		if (type == Object_key) {
+			JsonValue& obj = cbCtx.stack.back();
+			obj.object().push_back(JsonObjectField(std::string(value.string.p, value.string.len), JsonValue()));
+			return true;
+		}
+		
+		if (type == String_val) {
+			JsonValue data(string_view_t{value.string.p, value.string.len});
+			return add_scalar_value(cbCtx, std::move(data));
+		}
+		
 		switch (type)
 		{
 		case Array_begin:
@@ -600,16 +611,6 @@ static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val
 		case Bool_false:
 			return add_scalar_value(cbCtx, JsonValue(false));
 
-		case String_val: {
-			JsonValue data(string_view_t{value.string.p, value.string.len});
-			return add_scalar_value(cbCtx, std::move(data));
-		}
-		case Object_key: {
-			JsonValue& obj = cbCtx.stack.back();
-
-			obj.object().push_back(JsonObjectField(std::string(value.string.p, value.string.len), JsonValue()));
-			break;
-		}
 		default:
 			return false;
 		}
