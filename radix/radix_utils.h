@@ -173,19 +173,15 @@ struct compose {
 };
 
 
-struct partition_t {
-	partition_t() NEX
-		: count(0)
-	{ }
+struct partitions_t {
+	partitions_t() NEX { }
 	
 	union {
-		int32_t count;
-		int32_t offset;
+		int32_t count[256] = {0};
+		int32_t offset[256];
 	};
-	int32_t next_offset;
+	int32_t next_offset[256];
 };
-
-using partitions_t = std::array<partition_t, 256>;
 
 
 //
@@ -201,11 +197,12 @@ partitions_t compute_counts(RandomIt first, RandomIt last, ExtractKey&& ek) NEX
 	partitions_t partitions;
 	
 	for (; first != last; ++first) {
-		++partitions[ek(*first)].count;
+		++partitions.count[ek(*first)];
 	}
 	
 	return partitions;
 }
+
 
 //
 // Converts the 'count' field in-place to corresponding start & end positions in the 'partitions' array.
@@ -216,28 +213,28 @@ partitions_t compute_counts(RandomIt first, RandomIt last, ExtractKey&& ek) NEX
 //
 inline int32_t compute_ranges(partitions_t& partitions, counters_t& valid_part) NEX
 {
-	int32_t sum = partitions[0].count;
-	partitions[0].offset = 0;
+	int32_t sum = partitions.count[0];
+	partitions.offset[0] = 0;
 	
 	int32_t vp_size = sum ? 1 : 0;
 	valid_part[0] = 0;
 	
 	for (int32_t i=1; i<256; ++i) {
-		auto count = partitions[i].count;
+		auto count = partitions.count[i];
 
-		partitions[i-1].next_offset = sum;
-		partitions[i].offset = sum;
+		partitions.next_offset[i-1] = sum;
+		partitions.offset[i] = sum;
 		
-		if (count) {
-			valid_part[vp_size++] = i;
-			sum += count;
-		}
+		valid_part[vp_size] = i;
+		vp_size += count ? 1 : 0;
+		sum += count;
 	}
 	
-	partitions[255].next_offset = sum;
+	partitions.next_offset[255] = sum;
 	
 	return vp_size;
 }
+
 
 //
 // Eliminates the negative values from the array and returns the updated size.
@@ -248,7 +245,14 @@ inline int32_t compress_vp(counters_t& valid_part, int32_t vp_size) {
 	int32_t new_size = 0;
 	int32_t i = 0;
 	
-	while (vp_size--) {
+	while (vp_size) {
+		vp_size--;
+		if (valid_part[i++] < 0) { break; }
+		new_size++;
+	}
+	
+	while (vp_size) {
+		vp_size--;
 		if (valid_part[i] >= 0) valid_part[new_size++] = valid_part[i];
 		i++;
 	}
@@ -284,19 +288,18 @@ void swap_elements_into_place(RandomIt first, partitions_t& partitions, counters
 		
 		for (int32_t i=0; i<vp_size; ++i)
 		{
-			auto val = partitions[valid_part[i]];
+			auto val_off = partitions.offset[valid_part[i]];
+			auto val_next = partitions.next_offset[valid_part[i]];
 			
-			if (val.offset < val.next_offset) {
-				for (;;)
-				{
-					auto left = ek(first[val.offset]);
-					auto right_index = partitions[left].offset++;
+			if (val_off < val_next) {
+				do {
+					auto left = ek(first[val_off]);
+					auto right_index = partitions.offset[left]++;
 
 					sorted = false;
-					swap(first[val.offset], first[right_index]);
-					
-					if (++val.offset == val.next_offset) break;
+					swap(first[val_off], first[right_index]);
 				}
+				while (++val_off != val_next);
 			}
 			else {
 				valid_part[i] = -1;	// mark as done
@@ -372,10 +375,10 @@ void recurse_depth_first(RandomIt first, const partitions_t& partitions,
 	auto begin_offset = 0;
 	
 	for (int32_t i=0; i<256; ++i) {
-		auto end_offset = partitions[i].next_offset;
+		auto end_offset = partitions.next_offset[i];
 		
 		auto endp = first+end_offset;
-		auto pp = std::partition(first+begin_offset, endp, [round](const auto& el) {
+		auto pp = azp::partition(first+begin_offset, endp, [round](const auto& el) {
 			return end_of_string(el, round);
 		});
 		
@@ -424,7 +427,7 @@ void recurse_depth_first(RandomIt first, const partitions_t& partitions,
 {
 	auto begin_offset = 0;
 	for (int32_t i=0; i<256; ++i) {
-		auto end_offset = partitions[i].next_offset;
+		auto end_offset = partitions.next_offset[i];
 		auto diff = end_offset - begin_offset;
 		if (diff > 75) {		// magic number empirically determined
 			continuation(first+begin_offset, first+end_offset);
