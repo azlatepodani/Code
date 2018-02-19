@@ -1,6 +1,5 @@
 #pragma once
 #include <string.h>
-#include "algorithm.h"
 
 
 //
@@ -378,7 +377,7 @@ void recurse_depth_first(RandomIt first, const partitions_t& partitions,
 		auto end_offset = partitions.next_offset[i];
 		
 		auto endp = first+end_offset;
-		auto pp = azp::partition(first+begin_offset, endp, [round](const auto& el) {
+		auto pp = std::partition(first+begin_offset, endp, [round](const auto& el) {
 			return end_of_string(el, round);
 		});
 		
@@ -392,8 +391,7 @@ void recurse_depth_first(RandomIt first, const partitions_t& partitions,
 			auto comp = [round](const auto& l, const auto& r) {
 				return compare(l, r, round);
 			};
-			//std::sort(pp, endp, comp);
-			azp::sort(pp, endp, comp);
+			std::sort(pp, endp, comp);
 		}
 		
 		begin_offset = end_offset;
@@ -405,8 +403,7 @@ void recurse_depth_first(RandomIt first, const partitions_t& partitions,
 //
 template <typename RandomIt>
 void call_sort(RandomIt first, RandomIt last) {
-	//std::sort(first, last);
-	azp::sort(first, last);
+	std::sort(first, last);
 }
 
 template <>
@@ -414,8 +411,7 @@ void call_sort<wchar_t**>(wchar_t** first, wchar_t** last) {
 	auto comp = [](const wchar_t* l, const wchar_t* r) {
 		return compare(l, r, 0);
 	};
-	//std::sort(first, last, comp);
-	azp::sort(first, last, comp);
+	std::sort(first, last, comp);
 }
 
 //
