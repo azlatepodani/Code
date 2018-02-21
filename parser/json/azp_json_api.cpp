@@ -32,10 +32,11 @@ JsonValue& JsonValue::operator=(const JsonValue& other) {
 				string() = other.string();
 				break;
 				
-			case STRING_VIEW:
-				string().assign(other.u.view.str, other.u.view.len);
-				type = STRING;
-				break;
+			case STRING_VIEW: {    // STRING_VIEW is not owning the pointer,
+				JsonValue tmp(""); // so we convert it to STRING
+				tmp.string().assign(other.u.view.str, other.u.view.len);
+				return operator=(std::move(tmp));
+			}
 				
 			case NUMBER:
 				u.number = other.u.number;
@@ -67,8 +68,8 @@ JsonValue& JsonValue::operator=(const JsonValue& other) {
 				JsonValue tmp(other.string());
 				return operator=(std::move(tmp));
 			}
-			case STRING_VIEW: {
-				JsonValue tmp("");
+			case STRING_VIEW: {    // STRING_VIEW is not owning the pointer,
+				JsonValue tmp(""); // so we convert it to STRING
 				tmp.string().assign(other.u.view.str, other.u.view.len);
 				return operator=(std::move(tmp));
 			}
@@ -233,7 +234,9 @@ std::pair<JsonValue, std::string> json_reader(const std::string& stm) {
 		ctx.result = &val.first;
 		val.second = stm;
 		
-		if (!parseJson(p, &val.second[0], &val.second[0]+val.second.size())) throw std::exception(/*"cannot parse"*/);
+		if (!parseJson(p, &val.second[0], &val.second[0]+val.second.size())) {
+			throw std::exception(/*"cannot parse"*/);
+		}
 	}
 	
 	return val;
@@ -443,12 +446,12 @@ static size_t json_writer_size(const JsonValue& val) {
 
 static bool needEscape(char ch)
 {
-    if ((uint8_t)ch < 0x20) {
+	if (ch == '"' || ch == '\\') return true;
+
+    if ((uint8_t)ch < (uint8_t)0x20) {
         return true;
     }
 	
-	if (ch == '"' || ch == '\\') return true;
-
 	return false;
 }
 
@@ -467,12 +470,13 @@ static const char * const esctab[0x20] = {
 
 static void escape(std::string& dst, char ch)
 {
-	if (ch == '"') { dst.append("\\\"", 2); return; }
-	if (ch == '\\') { dst.append("\\\\", 2); return; }
-	
-    if (uint32_t(ch) < 0x20) {
-        dst.append(esctab[ch], 6);
-    }
+	if (ch == '"' || ch == '\\') {
+		dst.push_back('\\');
+		dst.push_back(ch);
+	}
+	else {
+		dst.append(esctab[ch], 6);
+	}
 }
 
 
