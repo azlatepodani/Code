@@ -130,7 +130,7 @@ partitions_t compute_counts(RandomIt first, RandomIt last, ExtractKey&& ek) NEX
 {
 	partitions_t partitions;
 	
-	for (; first != last; ++first) {
+	for (uint32_t len=uint32_t(last-first); len; --len,++first) {
 		++partitions.count[ek(*first)];
 	}
 	
