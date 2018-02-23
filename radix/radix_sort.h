@@ -73,15 +73,15 @@ inline void radix_sort(int8_t* first, int8_t* last) NEX {
 // Preconditions:
 //  1. The range [first, last) will have less than INT_MAX elements
 //
-inline void radix_sort(uint16_t* first, uint16_t* last) NEX {
-	partitions_t partitions = radix_pass_basic(first, last, ExtractHighByte());
+inline void radix_sort(uint16_t* first, uint16_t* last) NEX {	
+	partitions_t partitions = radix_pass_basic(first, last, ExtractByOffset<uint16_t, 1>());
 	
 	int32_t pos = 0;
 	for (int32_t i=0; i<256; ++i) {
 		auto ep = partitions.next_offset[i];
 		auto diff = ep-pos;
 		if (diff > 150) {
-			radix_pass_basic(first+pos, first+ep, ExtractLowByte());
+			radix_pass_basic(first+pos, first+ep, ExtractByOffset<uint16_t, 0>());
 		}
 		else if (diff > 1) {
 			std::sort(first+pos, first+ep);
@@ -122,13 +122,13 @@ void radix_pass_recurse(RandomIt first, RandomIt last, ExtractKey&& ek,
 						NextSort&& continuation) NEX
 {
 	partitions_t partitions = compute_counts(first, last, ek);
-	
+
 	counters_t valid_part;
 
 	auto vp_size = compute_ranges(partitions, valid_part);
-	
+
 	swap_elements_into_place(first, partitions, valid_part, vp_size, ek);
-	
+
 	recurse_depth_first(first, partitions, ek, continuation, typename ExtractKey::use_round());
 }
 
@@ -140,15 +140,15 @@ void radix_pass_recurse(RandomIt first, RandomIt last, ExtractKey&& ek,
 //
 inline void radix_sort(uint32_t* first, uint32_t* last) NEX
 {
-	using compose4 = compose<ExtractHighByte, ExtractHighWord>;
-	using compose3 = compose<ExtractLowByte,  ExtractHighWord>;
-	using compose2 = compose<ExtractHighByte, ExtractLowWord>;
-	using compose1 = compose<ExtractLowByte,  ExtractLowWord>;
+	using compose4 = ExtractByOffset<uint32_t, 3>;
+	using compose3 = ExtractByOffset<uint32_t, 2>;
+	using compose2 = ExtractByOffset<uint32_t, 1>;
+	using compose1 = ExtractByOffset<uint32_t, 0>;
 
-	radix_pass_recurse(first, last, compose4(ExtractHighByte(), ExtractHighWord()), [](uint32_t* first, uint32_t* last) {
-		radix_pass_recurse(first, last, compose3(ExtractLowByte(), ExtractHighWord()), [](uint32_t* first, uint32_t* last) {
-			radix_pass_recurse(first, last, compose2(ExtractHighByte(), ExtractLowWord()), [](uint32_t* first, uint32_t* last) {
-				radix_pass_basic(first, last, compose1(ExtractLowByte(), ExtractLowWord()));
+	radix_pass_recurse(first, last, compose4(), [](uint32_t* first, uint32_t* last) {
+		radix_pass_recurse(first, last, compose3(), [](uint32_t* first, uint32_t* last) {
+			radix_pass_recurse(first, last, compose2(), [](uint32_t* first, uint32_t* last) {
+				radix_pass_basic(first, last, compose1());
 			});
 		});
 	});
@@ -216,12 +216,10 @@ inline void radix_sort(char** first, char** last) NEX {
 template <typename WString>
 void radix_wstring(WString* first, WString* last, int32_t round) NEX
 {
-	radix_pass_recurse(first, last, compose_ch<WString>(ExtractHighByte(),
-		ExtractStringChar<WString>(round)),
+	radix_pass_recurse(first, last, ExtractWStringChar<WString, true>(round),
 		[round](WString* first, WString* last)
 		{
-			radix_pass_recurse(first, last, compose_cl<WString>(ExtractLowByte(),
-				ExtractStringChar<WString>(round)),
+			radix_pass_recurse(first, last, ExtractWStringChar<WString, false>(round),
 				[round](WString* first, WString* last)
 				{
 					radix_wstring(first, last, round+1);
@@ -255,7 +253,6 @@ inline void radix_sort(wchar_t** first, wchar_t** last) NEX {
 
 //
 // TODO:
-// - try the hits again
 // - less random data opt
 //
 
