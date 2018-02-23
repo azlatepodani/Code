@@ -3,4 +3,4 @@ set C_FLAGS= /GmFyLA /EHsc /Zi /O2 /Oi /guard:cf- /Qvec-report:1 /arch:AVX /sdl-
 rem set C_FLAGS= %C_FLAGS% /analyze 
 set L_FLAGS= /link /OPT:ICF
 
-cl.exe %C_FLAGS% tests\test_stl.cpp %L_FLAGS% 
+cl.exe %C_FLAGS% test_stl.cpp %L_FLAGS% 
