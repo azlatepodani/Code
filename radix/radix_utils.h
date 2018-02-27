@@ -1,4 +1,8 @@
 #pragma once
+#include <cstdint>
+#include <array>
+#include <utility>
+#include <algorithm>
 #include <string.h>
 
 
