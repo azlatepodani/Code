@@ -7,8 +7,14 @@
 #include <fstream>
 #include <chrono>
 #include <ratio>
+#include <algorithm>
 
 
+template <typename T>
+void CheckSorted(const std::vector<T>& vec);
+
+
+namespace azp {
 
 inline
 void gen_random_string_array(int n, int min_len, int max_len,
@@ -226,3 +232,5 @@ void print<const wchar_t*>(const wchar_t* const& l, const wchar_t* const& r) {
 		return str;
 	}
 #endif // _MSC_VER
+
+}

@@ -21,6 +21,9 @@ void CheckSorted(const std::vector<T>& vec) {
 }
 
 
+using namespace azp;
+
+
 int main() {
 		 
 #if defined(_MSC_VER)
