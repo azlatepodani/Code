@@ -23,15 +23,8 @@
 
 namespace azp {
 
-#define NEX  noexcept
-#define CST_NEX const NEX 
 
-
-using counters_t = std::array<int32_t, 256>;
-using long_counters_t = std::array<int64_t, 256>;
-
-using recurse_table_t = std::array<std::pair<int32_t, int32_t>, 257>;
-
+using part_indeces_t = std::array<int16_t, 256>;
 
 using scalar_key_t = bool;
 using vector_key_t = int32_t;
@@ -48,11 +41,11 @@ struct IdentityKey {
 	// Type traits
 	typedef scalar_key_t use_round;
 	
-	uint8_t operator()(uint8_t val) CST_NEX {
+	uint8_t operator()(uint8_t val) const {
 		return val;
 	}
 	
-	uint8_t operator()(int8_t val) CST_NEX {
+	uint8_t operator()(int8_t val) const {
 		return (uint8_t)val + 128;
 	}
 };
@@ -64,7 +57,7 @@ struct ExtractByOffset {
 	typedef T value_type;
 	typedef scalar_key_t use_round;
 	
-	uint8_t operator()(const T& val) CST_NEX {
+	uint8_t operator()(const T& val) const {
 		return ((const uint8_t*)&val)[off];
 	}
 };
@@ -79,11 +72,11 @@ struct ExtractStringChar {
 	typedef String value_type;
 	typedef vector_key_t use_round;
 	
-	explicit ExtractStringChar(int32_t offset) NEX
+	explicit ExtractStringChar(int32_t offset) 
 		: offset(offset)
 	{ }
 	
-	uint8_t	operator()(const String& str) CST_NEX {
+	uint8_t	operator()(const String& str) const {
 		return str[offset];
 	}
 
@@ -97,11 +90,11 @@ struct ExtractWStringChar {
 	typedef String value_type;
 	typedef vector_key_t use_round;
 	
-	explicit ExtractWStringChar(int32_t offset) NEX
+	explicit ExtractWStringChar(int32_t offset) 
 		: offset(offset)
 	{ }
 	
-	uint16_t operator()(const String& str) CST_NEX {
+	uint16_t operator()(const String& str) const {
 		uint16_t ch = str[offset];
 		if (high) return ch >> 8;
 		return ch & 0xFF;
@@ -112,7 +105,7 @@ struct ExtractWStringChar {
 
 
 struct partitions_t {
-	partitions_t() NEX { }
+	partitions_t()  { }
 	
 	union {
 		int32_t count[256] = {0};
@@ -130,7 +123,7 @@ struct partitions_t {
 //  2. The output parameter 'count' was 0-initialized
 //
 template <typename RandomIt, typename ExtractKey>
-partitions_t compute_counts(RandomIt first, RandomIt last, ExtractKey&& ek) NEX
+partitions_t compute_counts(RandomIt first, RandomIt last, ExtractKey&& ek) 
 {
 	partitions_t partitions;
 	
@@ -149,7 +142,7 @@ partitions_t compute_counts(RandomIt first, RandomIt last, ExtractKey&& ek) NEX
 // Preconditions:
 //  1. 'partitions' was initialized by compute_counts()
 //
-inline int32_t compute_ranges(partitions_t& partitions, counters_t& valid_part) NEX
+inline int32_t compute_ranges(partitions_t& partitions, part_indeces_t& valid_part) 
 {
 	int32_t sum = partitions.count[0];
 	partitions.offset[0] = 0;
@@ -163,7 +156,7 @@ inline int32_t compute_ranges(partitions_t& partitions, counters_t& valid_part) 
 		partitions.next_offset[i-1] = sum;
 		partitions.offset[i] = sum;
 		
-		valid_part[vp_size] = i;
+		valid_part[vp_size] = int16_t(i);
 		vp_size += count ? 1 : 0;
 		sum += count;
 	}
@@ -175,30 +168,6 @@ inline int32_t compute_ranges(partitions_t& partitions, counters_t& valid_part) 
 
 
 //
-// Eliminates the negative values from the array and returns the updated size.
-// A negative index means that the original partition is now processed.
-// @see swap_elements_into_place()
-//
-inline int32_t compress_vp(counters_t& valid_part, int32_t vp_size) {
-	int32_t new_size = 0;
-	int32_t i = 0;
-	
-	while (vp_size) {
-		vp_size--;
-		if (valid_part[i++] < 0) { break; }
-		new_size++;
-	}
-	
-	while (vp_size) {
-		vp_size--;
-		if (valid_part[i] >= 0) valid_part[new_size++] = valid_part[i];
-		i++;
-	}
-	
-	return new_size;
-}
-
-//
 // Sorts in linear time the data in the buffer pointed to by 'first' by using the info from 'partitions'.
 // The function uses the unqualified call to swap() to allow for client customisation.
 // The 'offset' field in the 'partitions' array will be modified by the function.
@@ -208,8 +177,8 @@ inline int32_t compress_vp(counters_t& valid_part, int32_t vp_size) {
 //  2. The buffer pointed to by 'first' is identical to the one that generated the ranges
 //
 template <typename RandomIt, typename ExtractKey>
-void swap_elements_into_place(RandomIt first, partitions_t& partitions, counters_t& valid_part,
-							  int32_t vp_size, ExtractKey&& ek) NEX
+void swap_elements_into_place(RandomIt first, partitions_t& partitions, part_indeces_t& valid_part,
+							  int32_t vp_size, ExtractKey&& ek) 
 {
 	using std::swap;
 	bool sorted = true;
@@ -217,12 +186,14 @@ void swap_elements_into_place(RandomIt first, partitions_t& partitions, counters
 	//
 	// We iterate through the non-empty partitions and pick elements from the buffer that will
 	// be swapped into place. A partition is empty if the offset and next_offset fields are equal.
-	// The empty partitions are marked in the 'valid_part' array by using a negative value.
+	// The empty partitions are eliminated from 'valid_part' array each iterration.
 	//
 	if (vp_size < 2) return;
 	
 	do {
 		sorted = true;
+		
+		int32_t new_i = -1;
 		
 		for (int32_t i=0; i<vp_size; ++i)
 		{
@@ -238,16 +209,59 @@ void swap_elements_into_place(RandomIt first, partitions_t& partitions, counters
 					swap(first[val_off], first[right_index]);
 				}
 				while (++val_off != val_next);
+
+				if (new_i >= 0) {
+					valid_part[new_i++] = valid_part[i];
+				}
 			}
 			else {
-				valid_part[i] = -1;	// mark as done
+				if (new_i < 0) new_i = i;
 			}
 		}
 
 		if (sorted) break;
 		
-		vp_size = compress_vp(valid_part, vp_size);
+		vp_size = (new_i >= 0) ? new_i : vp_size;
 	} while (true);
+}
+
+
+template <typename RandomIt, typename ExtractKey>
+void swap_elements_us_flag(RandomIt first, partitions_t& partitions, part_indeces_t& valid_part,
+						   int32_t vp_size, ExtractKey&& ek) 
+{
+	using std::swap;
+	
+	//
+	// We iterate through the non-empty partitions and pick elements from the buffer that will
+	// be swapped into place. A partition is empty if the offset and next_offset fields are equal.
+	// The empty partitions are marked in the 'valid_part' array by using a negative value.
+	//
+	if (vp_size < 2) return;
+	
+	for (int32_t i=0; i<vp_size-1; ++i) {
+		auto cur_part = valid_part[i];
+		auto val_off = partitions.offset[cur_part];
+		auto val_next = partitions.next_offset[cur_part];
+
+		for (;val_off != val_next;) {
+			auto dest_part = ek(first[val_off]);
+			if (dest_part != cur_part) {
+				auto right_index = partitions.offset[dest_part];
+
+				while (ek(first[right_index]) == dest_part) {
+					++right_index;
+				}
+
+				partitions.offset[dest_part] = right_index + 1;
+				
+				swap(first[val_off], first[right_index]);
+			}
+			else {
+				++val_off;
+			}
+		}
+	}
 }
 
 
@@ -256,17 +270,17 @@ void swap_elements_into_place(RandomIt first, partitions_t& partitions, counters
 //
 
 template <typename S>
-int32_t get_key_round(const ExtractStringChar<S>& ek) NEX {
+int32_t get_key_round(const ExtractStringChar<S>& ek)  {
 	return ek.offset;
 }
 
 template <typename S>
-int32_t get_key_round(const ExtractWStringChar<S, true>& ek) NEX {
+int32_t get_key_round(const ExtractWStringChar<S, true>& ek)  {
 	return ek.offset;
 }
 
 template <typename S>
-int32_t get_key_round(const ExtractWStringChar<S, false>& ek) NEX {
+int32_t get_key_round(const ExtractWStringChar<S, false>& ek)  {
 	return ek.offset;
 }
 
@@ -275,24 +289,24 @@ int32_t get_key_round(const ExtractWStringChar<S, false>& ek) NEX {
 // identical, so the comparison should start with the next character.
 //
 
-bool compare(const std::string& l, const std::string& r, int32_t round) NEX {
+bool compare(const std::string& l, const std::string& r, int32_t round)  {
 	return strcmp(&l[round], &r[round]) < 0;
 }
 
-bool compare(const std::wstring& l, const std::wstring& r, int32_t round) NEX {
+bool compare(const std::wstring& l, const std::wstring& r, int32_t round)  {
 	return wcscmp(&l[round], &r[round]) < 0;
 }
 
-bool compare(const char* l, const char* r, int32_t round) NEX {
+bool compare(const char* l, const char* r, int32_t round)  {
 	return strcmp(&l[round], &r[round]) < 0;
 }
 
-bool compare(const wchar_t* l, const wchar_t* r, int32_t round) NEX {
+bool compare(const wchar_t* l, const wchar_t* r, int32_t round)  {
 	return wcscmp(&l[round], &r[round]) < 0;
 }
 
 template <typename String>
-bool end_of_string(const String& str, int32_t round) NEX {
+bool end_of_string(const String& str, int32_t round)  {
 	return str[round] == 0;
 }
 
@@ -302,7 +316,7 @@ bool end_of_string(const String& str, int32_t round) NEX {
 //
 template <typename RandomIt, typename ExtractKey, typename NextSort>
 void recurse_depth_first(RandomIt first, const partitions_t& partitions,
-						 ExtractKey&& ek, NextSort&& continuation, vector_key_t) NEX
+						 ExtractKey&& ek, NextSort&& continuation, vector_key_t) 
 {
 	int32_t round = get_key_round(ek);
 	auto begin_offset = 0;
@@ -348,12 +362,20 @@ void call_sort<wchar_t**>(wchar_t** first, wchar_t** last) {
 	std::sort(first, last, comp);
 }
 
+template <>
+void call_sort<char**>(char** first, char** last) {
+	auto comp = [](const char* l, const char* r) {
+		return compare(l, r, 0);
+	};
+	std::sort(first, last, comp);
+}
+
 //
 // Calls the continuation function for each partition.
 //
 template <typename RandomIt, typename ExtractKey, typename NextSort>
 void recurse_depth_first(RandomIt first, const partitions_t& partitions,
-						 ExtractKey&&, NextSort&& continuation, scalar_key_t) NEX
+						 ExtractKey&&, NextSort&& continuation, scalar_key_t) 
 {
 	auto begin_offset = 0;
 	for (int32_t i=0; i<256; ++i) {
