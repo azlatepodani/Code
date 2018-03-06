@@ -24,7 +24,7 @@
 namespace azp {
 
 
-using part_indeces_t = std::array<int16_t, 256>;
+using part_indeces_t = std::array<uint8_t, 256>;
 
 using scalar_key_t = bool;
 using vector_key_t = int32_t;
@@ -156,7 +156,7 @@ inline int32_t compute_ranges(partitions_t& partitions, part_indeces_t& valid_pa
 		partitions.next_offset[i-1] = sum;
 		partitions.offset[i] = sum;
 		
-		valid_part[vp_size] = int16_t(i);
+		valid_part[vp_size] = uint8_t(i);
 		vp_size += count ? 1 : 0;
 		sum += count;
 	}
