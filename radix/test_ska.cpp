@@ -11,6 +11,8 @@
 // https://github.com/skarupke/ska_sort
 
 
+using namespace azp;
+
 template <typename T>
 void CheckSorted(const std::vector<T>& vec) {
 	for (auto l=vec.begin(), r=l+1; r != vec.end(); ++l,++r) {
@@ -21,7 +23,7 @@ void CheckSorted(const std::vector<T>& vec) {
 }
 
 
-using namespace azp;
+
 
 
 int main() {

@@ -186,7 +186,7 @@ void swap_elements_into_place(RandomIt first, partitions_t& partitions, part_ind
 	//
 	// We iterate through the non-empty partitions and pick elements from the buffer that will
 	// be swapped into place. A partition is empty if the offset and next_offset fields are equal.
-	// The empty partitions are eliminated from 'valid_part' array each iterration.
+	// The empty partitions are eliminated from 'valid_part' array each iteration.
 	//
 	if (vp_size < 2) return;
 	
@@ -234,8 +234,8 @@ void swap_elements_us_flag(RandomIt first, partitions_t& partitions, part_indece
 	
 	//
 	// We iterate through the non-empty partitions and pick elements from the buffer that will
-	// be swapped into place. A partition is empty if the offset and next_offset fields are equal.
-	// The empty partitions are marked in the 'valid_part' array by using a negative value.
+	// be swapped into place. We repeat the process until the correct element occupies the
+	// current position.
 	//
 	if (vp_size < 2) return;
 	
