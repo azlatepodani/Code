@@ -8,6 +8,8 @@
 #include <algorithm>
 
 
+using namespace azp;
+
 
 template <typename T>
 void CheckSorted(const std::vector<T>& vec) {

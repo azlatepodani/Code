@@ -181,7 +181,6 @@ void swap_elements_into_place(RandomIt first, partitions_t& partitions, part_ind
 							  int32_t vp_size, ExtractKey&& ek) 
 {
 	using std::swap;
-	bool sorted = true;
 	
 	//
 	// We iterate through the non-empty partitions and pick elements from the buffer that will
@@ -191,7 +190,7 @@ void swap_elements_into_place(RandomIt first, partitions_t& partitions, part_ind
 	if (vp_size < 2) return;
 	
 	do {
-		sorted = true;
+		bool sorted = true;
 		
 		int32_t new_i = -1;
 		

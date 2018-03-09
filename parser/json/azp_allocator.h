@@ -64,10 +64,11 @@ struct monotonic_alloc_t {
 		}
 	}
 	
-	bool owns(block_t b) {
+	bool owns(block_t b) const {
 		return (b.p >= _start) && ((char*)b.p + b.size <= _buffer);
 	}
 	
+	// cppcheck-suppress functionStatic
 	void free_all() { }
 	
 	const void* _start;
@@ -77,15 +78,18 @@ struct monotonic_alloc_t {
 
 
 struct default_alloc_t {
+	// cppcheck-suppress functionStatic
 	block_t alloc(size_t n) {
 		return block_t{ ::malloc(n), n };
 	}
 	
+	// cppcheck-suppress functionStatic
 	void free(block_t b) {
 		::free(b.p);
 	}
 	
-	bool owns(block_t) {
+	// cppcheck-suppress functionStatic
+	bool owns(block_t) const {
 		return true;
 	}
 };
@@ -110,6 +114,7 @@ struct freelist_alloc_t {
 	
 	void free(block_t b) {
 		if (b.size == size) {
+			// cppcheck-suppress cstyleCast
 			node_t* node = (node_t*)b.p;
 			node->next = _head;
 			_head = node;

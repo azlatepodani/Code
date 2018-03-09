@@ -107,6 +107,7 @@ struct JsonObjectField {
 	
 	JsonObjectField() = default;
 	
+	// cppcheck-suppress passedByValue
 	JsonObjectField(JsonString name_, JsonValue value_)
 		: name(std::move(name_)), value(std::move(value_)) { }
 	

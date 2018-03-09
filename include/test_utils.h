@@ -115,7 +115,7 @@ void gen_random_int_array(int n, T min_v, T max_v,
 template <typename T, typename Fn>
 void benchmark(const char * desc, std::vector<T>& vec, std::mt19937& g, Fn alg)
 {
-	int size = vec.size();
+	auto size = vec.size();
 	long long time = 0x7FFFFFFFFFFFFFFLL;
 	 
 	std::shuffle(vec.begin(), vec.begin()+size, g);
@@ -139,7 +139,7 @@ void benchmark(const char * desc, std::vector<T>& vec, std::mt19937& g, Fn alg)
 	}
 
 	time /= 1000;
-	printf("%-10s %10d %7dus\n", desc, size, (int)time);
+	printf("%-10s %10d %7dus\n", desc, (int)size, (int)time);
 }
 
 

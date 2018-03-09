@@ -76,6 +76,7 @@ static bool parseJsonScalarV(parser_base_t& p, char * first, char * last);
 
 
 struct dec_on_exit {
+	// cppcheck-suppress noExplicitConstructor
 	dec_on_exit(int32_t& val) : val(val) {}
 	~dec_on_exit() { --val; }
 	int32_t& val;
@@ -344,7 +345,6 @@ static bool parseNumberNoCopy(parser_base_t& p, char * first, char * last) {
 	}
 
 	bool haveDigit = false;
-	bool leadingZero = false;
 	bool haveDot = false;
 	bool haveExp = false;
 	bool haveDotDigit = false;
@@ -354,7 +354,6 @@ static bool parseNumberNoCopy(parser_base_t& p, char * first, char * last) {
 		cur++;
 		first++;	// valid input: 0, 0.x, 0ex
 		haveDigit = true;
-		leadingZero = true;
 	}
 	else {
 		// digits
@@ -368,7 +367,6 @@ static bool parseNumberNoCopy(parser_base_t& p, char * first, char * last) {
 	// optional '.<digits>'
 	if (*first == '.') {
 		haveDot = true;
-		leadingZero = false;
 		cur++;
 		first++;
 		
@@ -383,7 +381,6 @@ static bool parseNumberNoCopy(parser_base_t& p, char * first, char * last) {
 	// optional 'e[sign]<digits>'
 	if ((*first|0x20) == 'e') {
 		haveExp = true;
-		leadingZero = false;
 		
 		cur++;
 		first++;
