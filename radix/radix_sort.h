@@ -19,7 +19,7 @@ namespace azp {
 // Returns the resulting partitions array.
 //
 // Preconditions:
-//  1. The range [first, last) will have less than INT_MAX elements
+//  1. The range [first, last) will have less than UINT_MAX elements
 //
 template <typename RandomIt, typename ExtractKey>
 void radix_pass_basic(RandomIt first, RandomIt last, ExtractKey&& ek) 
@@ -42,7 +42,7 @@ void radix_pass_basic(RandomIt first, RandomIt last, ExtractKey&& ek)
 // Convenience wrapper for uint8_t
 //
 // Preconditions:
-//  1. The range [first, last) will have less than INT_MAX elements
+//  1. The range [first, last) will have less than UINT_MAX elements
 //
 inline void radix_sort(uint8_t* first, uint8_t* last)  {
 	radix_pass_basic(first, last, IdentityKey());
@@ -52,7 +52,7 @@ inline void radix_sort(uint8_t* first, uint8_t* last)  {
 // Convenience wrapper for int8_t
 //
 // Preconditions:
-//  1. The range [first, last) will have less than INT_MAX elements
+//  1. The range [first, last) will have less than UINT_MAX elements
 //
 inline void radix_sort(int8_t* first, int8_t* last)  {
 	uint8_t* f=(uint8_t*)first;
@@ -72,7 +72,7 @@ inline void radix_sort(int8_t* first, int8_t* last)  {
 // be called for each partition in order to enable sorting on multiple bytes
 //
 // Preconditions:
-//  1. The range [first, last) will have less than INT_MAX elements
+//  1. The range [first, last) will have less than UINT_MAX elements
 //
 template <typename RandomIt, typename ExtractKey, typename NextSort>
 void radix_pass_recurse(RandomIt first, RandomIt last, ExtractKey&& ek,
@@ -98,7 +98,7 @@ void radix_pass_recurse(RandomIt first, RandomIt last, ExtractKey&& ek,
 // Performs radix sort on unsigned 16bit values
 //
 // Preconditions:
-//  1. The range [first, last) will have less than INT_MAX elements
+//  1. The range [first, last) will have less than UINT_MAX elements
 //
 inline void radix_sort(uint16_t* first, uint16_t* last)  {
 	radix_pass_recurse(first, last, ExtractByOffset<uint16_t, 1>(), [](uint16_t* first, uint16_t* last) {
@@ -110,7 +110,7 @@ inline void radix_sort(uint16_t* first, uint16_t* last)  {
 // Performs radix sort on signed 16bit values
 //
 // Preconditions:
-//  1. The range [first, last) will have less than INT_MAX elements
+//  1. The range [first, last) will have less than UINT_MAX elements
 //
 inline void radix_sort(int16_t* first, int16_t* last)  {
 	uint16_t* f=(uint16_t*)first;
@@ -128,7 +128,7 @@ inline void radix_sort(int16_t* first, int16_t* last)  {
 // Performs radix sort on unsigned 32bit values
 //
 // Preconditions:
-//  1. The range [first, last) will have less than INT_MAX elements
+//  1. The range [first, last) will have less than UINT_MAX elements
 //
 inline void radix_sort(uint32_t* first, uint32_t* last) 
 {
@@ -150,7 +150,7 @@ inline void radix_sort(uint32_t* first, uint32_t* last)
 // Performs radix sort on signed 32bit values
 //
 // Preconditions:
-//  1. The range [first, last) will have less than INT_MAX elements
+//  1. The range [first, last) will have less than UINT_MAX elements
 //
 inline void radix_sort(int32_t* first, int32_t* last) 
 {
@@ -169,7 +169,7 @@ inline void radix_sort(int32_t* first, int32_t* last)
 // Utility function for strings of char like values
 //
 // Preconditions:
-//  1. The range [first, last) will have less than INT_MAX elements
+//  1. The range [first, last) will have less than UINT_MAX elements
 //
 template <typename String>
 void radix_string(String* first, String* last, int32_t round)  {
@@ -183,7 +183,7 @@ void radix_string(String* first, String* last, int32_t round)  {
 // Performs radix sort on std::string values
 //
 // Preconditions:
-//  1. The range [first, last) will have less than INT_MAX elements
+//  1. The range [first, last) will have less than UINT_MAX elements
 //
 inline void radix_sort(std::string* first, std::string* last)  {
 	radix_string(first, last, 0);
@@ -193,7 +193,7 @@ inline void radix_sort(std::string* first, std::string* last)  {
 // Performs radix sort on char* values
 //
 // Preconditions:
-//  1. The range [first, last) will have less than INT_MAX elements
+//  1. The range [first, last) will have less than UINT_MAX elements
 //
 inline void radix_sort(char** first, char** last)  {
 	radix_string(first, last, 0);
@@ -203,7 +203,7 @@ inline void radix_sort(char** first, char** last)  {
 // Utility function for strings of wchar_t like values
 //
 // Preconditions:
-//  1. The range [first, last) will have less than INT_MAX elements
+//  1. The range [first, last) will have less than UINT_MAX elements
 //
 template <typename WString>
 void radix_wstring(WString* first, WString* last, int32_t round) 
@@ -223,7 +223,7 @@ void radix_wstring(WString* first, WString* last, int32_t round)
 // Performs radix sort on std::wstring values
 //
 // Preconditions:
-//  1. The range [first, last) will have less than INT_MAX elements
+//  1. The range [first, last) will have less than UINT_MAX elements
 //
 inline void radix_sort(std::wstring* first, std::wstring* last)  {
 	radix_wstring(first, last, 0);
@@ -233,7 +233,7 @@ inline void radix_sort(std::wstring* first, std::wstring* last)  {
 // Performs radix sort on wchar_t* values
 //
 // Preconditions:
-//  1. The range [first, last) will have less than INT_MAX elements
+//  1. The range [first, last) will have less than UINT_MAX elements
 //
 inline void radix_sort(wchar_t** first, wchar_t** last)  {
 	radix_wstring(first, last, 0);

@@ -108,10 +108,10 @@ struct partitions_t {
 	partitions_t()  { }
 	
 	union {
-		int32_t count[256] = {0};
-		int32_t offset[256];
+		uint32_t count[256] = {0};
+		uint32_t offset[256];
 	};
-	int32_t next_offset[256];
+	uint32_t next_offset[256];
 };
 
 
@@ -119,7 +119,7 @@ struct partitions_t {
 // Counts the number of times each distinct 8bit key appears in the data.
 //
 // Preconditions:
-//  1. The range [first, last) will have less than INT_MAX elements
+//  1. The range [first, last) will have less than UINT_MAX elements
 //  2. The output parameter 'count' was 0-initialized
 //
 template <typename RandomIt, typename ExtractKey>
@@ -137,14 +137,14 @@ partitions_t compute_counts(RandomIt first, RandomIt last, ExtractKey&& ek)
 
 //
 // Converts the 'count' field in-place to corresponding start & end positions in the 'partitions' array.
-// Creates the vector of indeces to non-empty partitions 'valid_part' and returns its size
+// Creates the vector of indexes to non-empty partitions 'valid_part' and returns its size
 //
 // Preconditions:
 //  1. 'partitions' was initialized by compute_counts()
 //
 inline int32_t compute_ranges(partitions_t& partitions, part_indeces_t& valid_part) 
 {
-	int32_t sum = partitions.count[0];
+	uint32_t sum = partitions.count[0];
 	partitions.offset[0] = 0;
 	
 	int32_t vp_size = sum ? 1 : 0;
