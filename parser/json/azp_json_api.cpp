@@ -20,35 +20,35 @@ JsonValue& JsonValue::operator=(const JsonValue& other) {
 		// This is a small optimization that allows for reusing the available buffers 
 		//
 		switch (type) {
-			case OBJECT:
+			case Object:
 				object() = other.object();
 				break;
 
-			case ARRAY:
+			case Array:
 				array() = other.array();
 				break;
 				
-			case STRING:
+			case String:
 				string() = other.string();
 				break;
 				
-			case STRING_VIEW: {    // STRING_VIEW is not owning the pointer,
-				JsonValue tmp(""); // so we convert it to STRING
+			case String_view: {    // String_view is not owning the pointer,
+				JsonValue tmp(""); // so we convert it to String
 				tmp.string().assign(other.u.view.str, other.u.view.len);
 				return operator=(std::move(tmp));
 			}
 				
-			case NUMBER:
+			case Number:
 				u.number = other.u.number;
 				break;
 				
-			case FLOAT_NUM:
+			case Float_num:
 				u.float_num = other.u.float_num;
 				break;
 				
-			case BOOL_TRUE:
-			case BOOL_FALSE:
-			default: // case EMPTY:
+			case Bool_true:
+			case Bool_false:
+			default: // case Empty:
 			;	// nothing to do
 		}
 
@@ -56,40 +56,40 @@ JsonValue& JsonValue::operator=(const JsonValue& other) {
 	}
 	else {
 		switch (other.type) {
-			case OBJECT: {
+			case Object: {
 				JsonValue tmp(other.object());
 				return operator=(std::move(tmp));
 			}
-			case ARRAY: {
+			case Array: {
 				JsonValue tmp(other.array());
 				return operator=(std::move(tmp));
 			}
-			case STRING: {
+			case String: {
 				JsonValue tmp(other.string());
 				return operator=(std::move(tmp));
 			}
-			case STRING_VIEW: {    // STRING_VIEW is not owning the pointer,
-				JsonValue tmp(""); // so we convert it to STRING
+			case String_view: {    // String_view is not owning the pointer,
+				JsonValue tmp(""); // so we convert it to String
 				tmp.string().assign(other.u.view.str, other.u.view.len);
 				return operator=(std::move(tmp));
 			}
-			case NUMBER: {
+			case Number: {
 				JsonValue tmp(other.u.number);
 				return operator=(std::move(tmp));
 			}
-			case FLOAT_NUM: {
+			case Float_num: {
 				JsonValue tmp(other.u.float_num);
 				return operator=(std::move(tmp));
 			}
-			case BOOL_TRUE: {
+			case Bool_true: {
 				JsonValue tmp(true);
 				return operator=(std::move(tmp));
 			}
-			case BOOL_FALSE: {
+			case Bool_false: {
 				JsonValue tmp(false);
 				return operator=(std::move(tmp));
 			}
-			default: { // case EMPTY:
+			default: { // case Empty:
 				JsonValue tmp(nullptr);
 				return operator=(std::move(tmp));
 			}
@@ -100,57 +100,57 @@ JsonValue& JsonValue::operator=(const JsonValue& other) {
 
 JsonValue& JsonValue::operator=(JsonValue&& other) noexcept {
 	switch (type) {
-		case OBJECT:
+		case Object:
 			object().~JsonObject();
 			break;
 
-		case ARRAY:
+		case Array:
 			array().~JsonArray();
 			break;
 			
-		case STRING:
+		case String:
 			string().~JsonString();
 			break;
 			
-		case NUMBER:
-		case STRING_VIEW:
-		case FLOAT_NUM:
-		case BOOL_TRUE:
-		case BOOL_FALSE:
-		default: // case EMPTY:
+		case Number:
+		case String_view:
+		case Float_num:
+		case Bool_true:
+		case Bool_false:
+		default: // case Empty:
 		;	// nothing to do
 	}
 	
 	type = other.type;
 	
 	switch (other.type) {
-		case OBJECT:
+		case Object:
 			new (u.buf) JsonObject(std::move(other.object()));
 			break;
 
-		case ARRAY:
+		case Array:
 			new (u.buf) JsonArray(std::move(other.array()));
 			break;
 			
-		case STRING:
+		case String:
 			_initString(std::move(other.string()));
 			break;
 			
-		case STRING_VIEW:
+		case String_view:
 			u.view = other.u.view;
 			break;
 			
-		case NUMBER:
+		case Number:
 			u.number = other.u.number;
 			break;
 			
-		case FLOAT_NUM:
+		case Float_num:
 			u.float_num = other.u.float_num;
 			break;
 			
-		case BOOL_TRUE:
-		case BOOL_FALSE:
-		default: // case EMPTY:
+		case Bool_true:
+		case Bool_false:
+		default: // case Empty:
 		;	// nothing to do
 	}
 
@@ -160,24 +160,24 @@ JsonValue& JsonValue::operator=(JsonValue&& other) noexcept {
 
 JsonValue::~JsonValue() {
     switch (type) {
-		case OBJECT:
+		case Object:
 			object().~JsonObject();
 			break;
 
-		case ARRAY:
+		case Array:
 			array().~JsonArray();
 			break;
 			
-		case STRING:
+		case String:
 			string().~JsonString();
 			break;
 			
-		case STRING_VIEW:
-		case NUMBER:
-		case FLOAT_NUM:
-		case BOOL_TRUE:
-		case BOOL_FALSE:
-		default: // case EMPTY:
+		case String_view:
+		case Number:
+		case Float_num:
+		case Bool_true:
+		case Bool_false:
+		default: // case Empty:
 		;	// nothing to do
 	}
 }
@@ -251,44 +251,44 @@ static std::string double_to_string(double dbl);
 
 static void json_writer_imp(std::string& stm, const JsonValue& val) {
 	switch (val.type) {
-		case JsonValue::OBJECT:
+		case JsonValue::Object:
 			json_writer_object(stm, val.object());
 			break;
 
-		case JsonValue::ARRAY:
+		case JsonValue::Array:
 			json_writer_array(stm, val.array());
 			break;
 			
-		case JsonValue::STRING:
+		case JsonValue::String:
 			stm.push_back('"');{
 			auto& s = val.string();
 			jsonEscape(s.c_str(), s.size(), stm);}
 			stm.push_back('"');
 			break;
 			
-		case JsonValue::STRING_VIEW:
+		case JsonValue::String_view:
 			stm.push_back('"');
 			jsonEscape(val.u.view.str, val.u.view.len, stm);
 			stm.push_back('"');
 			break;
 			
-		case JsonValue::NUMBER:
+		case JsonValue::Number:
 			stm.append(std::to_string(val.u.number));
 			break;
 			
-		case JsonValue::FLOAT_NUM:
+		case JsonValue::Float_num:
 			stm.append(double_to_string(val.u.float_num));
 			break;
 			
-		case JsonValue::BOOL_TRUE:
+		case JsonValue::Bool_true:
 			stm.append("true");
 			break;
 			
-		case JsonValue::BOOL_FALSE:
+		case JsonValue::Bool_false:
 		    stm.append("false");
 			break;
 			
-		default: // case EMPTY:
+		default: // case Empty:
 			stm.append("null");
 	}
 }
@@ -407,32 +407,32 @@ static size_t json_writer_size(const JsonValue& val) {
 	size_t size = 0;
 	
 	switch (val.type) {
-		case JsonValue::OBJECT:
+		case JsonValue::Object:
 			size = json_writer_object_size(val.object());
 			break;
 
-		case JsonValue::ARRAY:
+		case JsonValue::Array:
 			size = json_writer_array_size(val.array());
 			break;
 			
-		case JsonValue::STRING:
+		case JsonValue::String:
 			size = 2 + val.string().size();
 			break;
 			
-		case JsonValue::STRING_VIEW:
+		case JsonValue::String_view:
 			size = 2 + val.u.view.len;
 			break;
 			
-		case JsonValue::NUMBER:
+		case JsonValue::Number:
 			size = number_size(val.u.number);
 			break;
 			
-		case JsonValue::FLOAT_NUM:
+		case JsonValue::Float_num:
 			//size = double_to_string_size(val.u.float_num);	// more expensive than potentially doing an allocation
 			size = 15;	// any number that cannot be exactly represented will require at least 19 chars
 			break;
 			
-		case JsonValue::BOOL_FALSE:
+		case JsonValue::Bool_false:
 		    size = 5;
 			break;
 			
@@ -545,10 +545,10 @@ template <typename Allocator>
 static bool add_scalar_value(parser_callback_ctx_t<Allocator>& cbCtx, JsonValue&& data) {
     JsonValue& val = cbCtx.stack.back();
 
-    if (val.type == JsonValue::OBJECT) {
+    if (val.type == JsonValue::Object) {
         val.object().back().value = std::move(data);
     }
-    else if (val.type == JsonValue::ARRAY) {
+    else if (val.type == JsonValue::Array) {
         val.array().push_back(std::move(data));
     }
     else {

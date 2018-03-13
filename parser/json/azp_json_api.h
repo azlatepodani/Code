@@ -29,16 +29,17 @@ struct string_view_t {
 // Models the JSON data. Minimal implementation.
 //
 struct JsonValue {
-	enum TYPES {
-		OBJECT,
-		ARRAY,
-		STRING,
-		STRING_VIEW,
-		NUMBER,
-		FLOAT_NUM,
-		BOOL_TRUE,
-		BOOL_FALSE,
-		EMPTY
+	enum ValueTypes {
+		Empty,
+		Object,
+		Array,
+		String,
+		String_view,
+		Number,
+		Float_num,
+		Bool_true,
+		Bool_false,
+		Max_types
 	} type;
 	
 	union Impl {
@@ -129,40 +130,40 @@ struct JsonObjectField {
 // Implementation
 //
 
-inline JsonValue::JsonValue() noexcept : type(EMPTY) { }
+inline JsonValue::JsonValue() noexcept : type(Empty) { }
 
-inline JsonValue::JsonValue(const JsonValue& other) : type(EMPTY) {
+inline JsonValue::JsonValue(const JsonValue& other) : type(Empty) {
 	operator=(other);
 }
 
 inline JsonValue::JsonValue(JsonValue&& other) noexcept
-	: type(EMPTY)
+	: type(Empty)
 {
 	operator=(std::move(other));
 }
 
-inline JsonValue::JsonValue(std::nullptr_t) noexcept : type(EMPTY) { }
+inline JsonValue::JsonValue(std::nullptr_t) noexcept : type(Empty) { }
 
 inline JsonValue::JsonValue(JsonObject obj)
-	: type(OBJECT)
+	: type(Object)
 {
 	new (u.buf) JsonObject(std::move(obj));
 }
 
 inline JsonValue::JsonValue(JsonArray arr)
-	: type(ARRAY)
+	: type(Array)
 {
 	new (u.buf) JsonArray(std::move(arr));
 }
 
 inline JsonValue::JsonValue(int64_t num) noexcept
-	: type(NUMBER)
+	: type(Number)
 {
 	new (&u.number) int64_t(num);
 }
 
 inline JsonValue::JsonValue(double num) noexcept
-	: type(FLOAT_NUM)
+	: type(Float_num)
 {
 	new (&u.float_num) double(num);
 }
@@ -172,52 +173,52 @@ inline void JsonValue::_initString(JsonString&& str) noexcept {
 }
 
 inline JsonValue::JsonValue(JsonString str) noexcept
-	: type(STRING)
+	: type(String)
 {
 	_initString(std::move(str));
 }
 
 inline JsonValue::JsonValue(const char* str)
-	: type(STRING)
+	: type(String)
 {
 	_initString(JsonString(str));
 }
 
 inline JsonValue::JsonValue(string_view_t str) noexcept
-	: type(STRING_VIEW)
+	: type(String_view)
 {
 	u.view = str;
 }
 
-inline JsonValue::JsonValue(bool val) noexcept : type(val ? BOOL_TRUE : BOOL_FALSE) { }
+inline JsonValue::JsonValue(bool val) noexcept : type(val ? Bool_true : Bool_false) { }
 
 inline const JsonObject& JsonValue::object() const noexcept {
-	assert(type == OBJECT);
+	assert(type == Object);
 	return *reinterpret_cast<const JsonObject *>(u.buf);
 }
 
 inline JsonObject& JsonValue::object() noexcept {
-	assert(type == OBJECT);
+	assert(type == Object);
 	return *reinterpret_cast<JsonObject *>(u.buf);
 }
 
 inline const JsonArray& JsonValue::array() const noexcept {
-	assert(type == ARRAY);
+	assert(type == Array);
 	return *reinterpret_cast<const JsonArray *>(u.buf);
 }
 
 inline JsonArray& JsonValue::array() noexcept {
-	assert(type == ARRAY);
+	assert(type == Array);
 	return *reinterpret_cast<JsonArray *>(u.buf);
 }
 
 inline const JsonString& JsonValue::string() const noexcept {
-	assert(type == STRING);
+	assert(type == String);
 	return *reinterpret_cast<const JsonString *>(u.buf);
 }
 
 inline JsonString& JsonValue::string() noexcept {
-	assert(type == STRING);
+	assert(type == String);
 	return *reinterpret_cast<JsonString *>(u.buf);
 }
 

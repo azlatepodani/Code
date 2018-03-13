@@ -568,7 +568,8 @@ static bool parseTrue(parser_base_t& p, char * first, char * last) {
 		v |= uint32_t(first[2]) << 16;
 	}
 	else {
-		v = *(uint32_t *)first & 0xFFFFFF;
+		memcpy(&v, first, sizeof(v));
+		v &= 0xFFFFFF;
 	}
 	
 	if (v != '\0eur') return parse_error(p, Invalid_token, first-1);
@@ -583,7 +584,8 @@ static bool parseTrue(parser_base_t& p, char * first, char * last) {
 static bool parseFalse(parser_base_t& p, char * first, char * last) {
 	if (last-first < 4) return parse_error(p, Invalid_token, first-1);
 	
-	uint32_t v = *(uint32_t *)first;
+	uint32_t v;
+	memcpy(&v, first, sizeof(v));
 	
 	if (v != 'esla') return parse_error(p, Invalid_token, first-1);
 	
@@ -607,7 +609,8 @@ static bool parseNull(parser_base_t& p, char * first, char * last) {
 		v |= uint32_t(first[2]) << 16;
 	}
 	else {
-		v = *(uint32_t *)first & 0xFFFFFF;
+		memcpy(&v, first, sizeof(v));
+		v &= 0xFFFFFF;
 	}
 	
 	if (v != '\0llu') return parse_error(p, Invalid_token, first-1);
