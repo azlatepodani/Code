@@ -15,6 +15,7 @@ struct vector {
 	T* _max;
 	Allocator& _a;
 	
+	// cppcheck-suppress noExplicitConstructor
 	vector(Allocator& a) noexcept : _start(0), _end(0), _max(0), _a(a) { }
 	vector(Allocator& a, size_t requested) : vector(a) {
 		reserve(requested);
@@ -29,7 +30,7 @@ struct vector {
 	~vector();
 	
 	void reserve(size_t requested);
-	void resize(size_t size);
+	void resize(size_t n);
 
 	size_t capacity() const { return _max - _start; }
 	size_t size() const { return _end - _start; }

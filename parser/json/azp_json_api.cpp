@@ -207,14 +207,15 @@ struct parser_callback_ctx_t {
     JsonValue * result;
 	Allocator& a;
 	
+	// cppcheck-suppress noExplicitConstructor
 	parser_callback_ctx_t(Allocator& a) 
-		: stack(a), firstCall(1), a(a), result(0)
+		: firstCall(1), stack(a), result(0), a(a)
 	{ }
 };
 
 
 template <typename Allocator>
-static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val) noexcept;
+static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& value) noexcept;
 
 
 std::pair<JsonValue, std::string> json_reader(const std::string& stm) {
