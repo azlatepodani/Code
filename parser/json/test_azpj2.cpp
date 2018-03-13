@@ -34,7 +34,7 @@ void check() {
 	json_writer(j, v);
 	auto p = json_reader(j);
 	
-	if (p.first.type == JsonValue::FLOAT_NUM && p.first.u.float_num == v.u.float_num) {
+	if (p.first.type == JsonValue::Float_num && p.first.u.float_num == v.u.float_num) {
 		printf("check ok\n");
 	}
 	else {

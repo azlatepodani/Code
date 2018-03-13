@@ -16,8 +16,6 @@ typedef vector<JsonObjectField, alloc_t>  JsonObject;
 typedef vector<JsonValue, alloc_t>  JsonArray;
 typedef std::string  JsonString;
 
-static_assert(sizeof(JsonString) >= sizeof(JsonObject), "check JsonValue::Impl::buf size");
-static_assert(sizeof(JsonString) >= sizeof(JsonArray), "check JsonValue::Impl::buf size");
 
 
 struct string_view_t {
@@ -43,10 +41,15 @@ struct JsonValue {
 	} type;
 	
 	union Impl {
-		char          buf[sizeof(JsonString)];
+		JsonObject    object;
+		JsonArray     array;
+		JsonString    string;
 		int64_t  	  number;
 		double        float_num;
 		string_view_t view;
+		
+		Impl() { }
+		~Impl() { }
 	} u;
 	
 	JsonValue() noexcept;
@@ -67,15 +70,6 @@ struct JsonValue {
 	JsonValue& operator=(const JsonValue& other);
 	JsonValue& operator=(JsonValue&& other) noexcept;
 	
-	const JsonObject& object() const noexcept;
-		  JsonObject& object() noexcept;
-	
-	const JsonArray& array() const noexcept;
-		  JsonArray& array() noexcept;
-	
-	const JsonString& string() const noexcept;
-		  JsonString& string() noexcept;
-
     ~JsonValue();
 	
 protected:
@@ -148,13 +142,13 @@ inline JsonValue::JsonValue(std::nullptr_t) noexcept : type(Empty) { }
 inline JsonValue::JsonValue(JsonObject obj)
 	: type(Object)
 {
-	new (u.buf) JsonObject(std::move(obj));
+	new (&u.object) JsonObject(std::move(obj));
 }
 
 inline JsonValue::JsonValue(JsonArray arr)
 	: type(Array)
 {
-	new (u.buf) JsonArray(std::move(arr));
+	new (&u.array) JsonArray(std::move(arr));
 }
 
 inline JsonValue::JsonValue(int64_t num) noexcept
@@ -170,7 +164,7 @@ inline JsonValue::JsonValue(double num) noexcept
 }
 
 inline void JsonValue::_initString(JsonString&& str) noexcept {
-	new (u.buf) JsonString(std::move(str));
+	new (&u.string) JsonString(std::move(str));
 }
 
 inline JsonValue::JsonValue(JsonString str) noexcept
@@ -192,37 +186,6 @@ inline JsonValue::JsonValue(string_view_t str) noexcept
 }
 
 inline JsonValue::JsonValue(bool val) noexcept : type(val ? Bool_true : Bool_false) { }
-
-inline const JsonObject& JsonValue::object() const noexcept {
-	assert(type == Object);
-	return *reinterpret_cast<const JsonObject *>(u.buf);
-}
-
-inline JsonObject& JsonValue::object() noexcept {
-	assert(type == Object);
-	return *reinterpret_cast<JsonObject *>(u.buf);
-}
-
-inline const JsonArray& JsonValue::array() const noexcept {
-	assert(type == Array);
-	return *reinterpret_cast<const JsonArray *>(u.buf);
-}
-
-inline JsonArray& JsonValue::array() noexcept {
-	assert(type == Array);
-	return *reinterpret_cast<JsonArray *>(u.buf);
-}
-
-inline const JsonString& JsonValue::string() const noexcept {
-	assert(type == String);
-	return *reinterpret_cast<const JsonString *>(u.buf);
-}
-
-inline JsonString& JsonValue::string() noexcept {
-	assert(type == String);
-	return *reinterpret_cast<JsonString *>(u.buf);
-}
-
 
 
 } // namespace asu

@@ -21,20 +21,20 @@ JsonValue& JsonValue::operator=(const JsonValue& other) {
 		//
 		switch (type) {
 			case Object:
-				object() = other.object();
+				u.object = other.u.object;
 				break;
 
 			case Array:
-				array() = other.array();
+				u.array = other.u.array;
 				break;
 				
 			case String:
-				string() = other.string();
+				u.string = other.u.string;
 				break;
 				
 			case String_view: {    // String_view is not owning the pointer,
 				JsonValue tmp(""); // so we convert it to String
-				tmp.string().assign(other.u.view.str, other.u.view.len);
+				tmp.u.string.assign(other.u.view.str, other.u.view.len);
 				return operator=(std::move(tmp));
 			}
 				
@@ -57,20 +57,20 @@ JsonValue& JsonValue::operator=(const JsonValue& other) {
 	else {
 		switch (other.type) {
 			case Object: {
-				JsonValue tmp(other.object());
+				JsonValue tmp(other.u.object);
 				return operator=(std::move(tmp));
 			}
 			case Array: {
-				JsonValue tmp(other.array());
+				JsonValue tmp(other.u.array);
 				return operator=(std::move(tmp));
 			}
 			case String: {
-				JsonValue tmp(other.string());
+				JsonValue tmp(other.u.string);
 				return operator=(std::move(tmp));
 			}
 			case String_view: {    // String_view is not owning the pointer,
 				JsonValue tmp(""); // so we convert it to String
-				tmp.string().assign(other.u.view.str, other.u.view.len);
+				tmp.u.string.assign(other.u.view.str, other.u.view.len);
 				return operator=(std::move(tmp));
 			}
 			case Number: {
@@ -101,15 +101,15 @@ JsonValue& JsonValue::operator=(const JsonValue& other) {
 JsonValue& JsonValue::operator=(JsonValue&& other) noexcept {
 	switch (type) {
 		case Object:
-			object().~JsonObject();
+			u.object.~JsonObject();
 			break;
 
 		case Array:
-			array().~JsonArray();
+			u.array.~JsonArray();
 			break;
 			
 		case String:
-			string().~JsonString();
+			u.string.~JsonString();
 			break;
 			
 		case Number:
@@ -125,15 +125,15 @@ JsonValue& JsonValue::operator=(JsonValue&& other) noexcept {
 	
 	switch (other.type) {
 		case Object:
-			new (u.buf) JsonObject(std::move(other.object()));
+			new (&u.object) JsonObject(std::move(other.u.object));
 			break;
 
 		case Array:
-			new (u.buf) JsonArray(std::move(other.array()));
+			new (&u.array) JsonArray(std::move(other.u.array));
 			break;
 			
 		case String:
-			_initString(std::move(other.string()));
+			_initString(std::move(other.u.string));
 			break;
 			
 		case String_view:
@@ -161,15 +161,15 @@ JsonValue& JsonValue::operator=(JsonValue&& other) noexcept {
 JsonValue::~JsonValue() {
     switch (type) {
 		case Object:
-			object().~JsonObject();
+			u.object.~JsonObject();
 			break;
 
 		case Array:
-			array().~JsonArray();
+			u.array.~JsonArray();
 			break;
 			
 		case String:
-			string().~JsonString();
+			u.string.~JsonString();
 			break;
 			
 		case String_view:
@@ -253,16 +253,16 @@ static std::string double_to_string(double dbl);
 static void json_writer_imp(std::string& stm, const JsonValue& val) {
 	switch (val.type) {
 		case JsonValue::Object:
-			json_writer_object(stm, val.object());
+			json_writer_object(stm, val.u.object);
 			break;
 
 		case JsonValue::Array:
-			json_writer_array(stm, val.array());
+			json_writer_array(stm, val.u.array);
 			break;
 			
 		case JsonValue::String:
 			stm.push_back('"');{
-			auto& s = val.string();
+			auto& s = val.u.string;
 			jsonEscape(s.c_str(), s.size(), stm);}
 			stm.push_back('"');
 			break;
@@ -409,15 +409,15 @@ static size_t json_writer_size(const JsonValue& val) {
 	
 	switch (val.type) {
 		case JsonValue::Object:
-			size = json_writer_object_size(val.object());
+			size = json_writer_object_size(val.u.object);
 			break;
 
 		case JsonValue::Array:
-			size = json_writer_array_size(val.array());
+			size = json_writer_array_size(val.u.array);
 			break;
 			
 		case JsonValue::String:
-			size = 2 + val.string().size();
+			size = 2 + val.u.string.size();
 			break;
 			
 		case JsonValue::String_view:
@@ -547,10 +547,10 @@ static bool add_scalar_value(parser_callback_ctx_t<Allocator>& cbCtx, JsonValue&
     JsonValue& val = cbCtx.stack.back();
 
     if (val.type == JsonValue::Object) {
-        val.object().back().value = std::move(data);
+        val.u.object.back().value = std::move(data);
     }
     else if (val.type == JsonValue::Array) {
-        val.array().push_back(std::move(data));
+        val.u.array.push_back(std::move(data));
     }
     else {
 		return false;
@@ -567,7 +567,7 @@ static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val
 	if (!cbCtx.firstCall) {
 		if (type == Object_key) {
 			JsonValue& obj = cbCtx.stack.back();
-			obj.object().push_back(JsonObjectField(std::string(value.string.p, value.string.len), JsonValue()));
+			obj.u.object.push_back(JsonObjectField(std::string(value.string.p, value.string.len), JsonValue()));
 			return true;
 		}
 		
