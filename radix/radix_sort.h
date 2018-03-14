@@ -165,17 +165,38 @@ inline void radix_sort(int32_t* first, int32_t* last)
 	for (; f!=l; ++f) *f -= 0x80000000;
 }
 
-
+//
+// Performs radix sort on single precision floating point values
+//
+// Preconditions:
+//  1. The range [first, last) will have less than UINT_MAX elements
+//  2. No NANs are present
+//
 inline void radix_sort(float* first, float* last) 
 {
 	uint32_t* f = (uint32_t*)first;
 	uint32_t* l = (uint32_t*)last;
 	
+	//
+	// Floats are represented as sign | biased-exp | fraction
+	// For positive numbers we only need to set the sign bit and they
+	// will sort correctly using the '<' operator directly on the value
+	// To achieve the same effect for negative values, we need to apply a
+	// 1s complement conversion to the binary representation. This solves
+	// two problems: sets the sign bit to 0 and gives us the property that
+	// smaller numbers have a smaller integer value
+	//
 	for (; f!=l; ++f) *f ^= (*f & 0x80000000) ? 0xFFFFFFFF : 0x80000000;
 	
 	f = (uint32_t*)first;
 	radix_sort(f,l);
 	
+	//
+	// The inverse operation: if the sign bit is set, we need to clear it.
+	// The value was previously a positive float. If the sign bit is 0, 
+	// we need to perform 1s complement on the bits. The result is the original
+	// negative float value.
+	//
 	for (; f!=l; ++f) *f ^= (*f & 0x80000000) ? 0x80000000 : 0xFFFFFFFF;
 }
 

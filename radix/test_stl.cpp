@@ -37,6 +37,8 @@ int main() {
 	{
 	std::vector<float> vec1;
 	gen_random_float_array<float>(1500000, -1000.f, 1000.f, vec1, g);
+	*(uint32_t*)&vec1[100] = 0x7f800000;	// + inf
+	*(uint32_t*)&vec1[1000] = 0xff800000;	// - inf
 	benchmark("v float", vec1, g, [](float* f, float* l){std::sort(f,l);});
 	}{
 	std::vector<uint8_t> vec1;
