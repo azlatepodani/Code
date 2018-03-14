@@ -111,6 +111,18 @@ void gen_random_int_array(int n, T min_v, T max_v,
 	}
 }
 
+template <typename T>
+void gen_random_float_array(int n, T min_v, T max_v,
+							std::vector<T>& vec,
+							std::mt19937& g)
+{
+	auto x = std::uniform_real_distribution<T>(min_v, max_v);
+	
+	for (int i=0; i<n; ++i) {
+		vec.emplace_back(x(g));
+	}
+}
+
 
 template <typename T, typename Fn>
 void benchmark(const char * desc, std::vector<T>& vec, std::mt19937& g, Fn alg)

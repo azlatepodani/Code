@@ -15,6 +15,7 @@ using namespace azp;
 
 bool compare(unsigned a, unsigned b, int) { return a<b; }
 bool compare(int a, int b, int) { return a<b; }
+bool compare(float a, float b, int) { return a<b; }
 
 template <typename T>
 void CheckSorted(const std::vector<T>& vec) {
@@ -40,6 +41,10 @@ int main() {
 	printf("%-10s %-10s    time\n", "  type", "# elements");
 
 	{
+	std::vector<float> vec1;
+	gen_random_float_array<float>(1500000, -1000.f, 1000.f, vec1, g);
+	benchmark("v float", vec1, g, [](float* f, float* l){radix_sort(f,l);});
+	}{
 	std::vector<uint8_t> vec1;
 	gen_random_int_array<uint8_t>(1500000, 0, 255, vec1, g);
 	benchmark("v uint8", vec1, g, [](uint8_t* f, uint8_t* l){radix_sort(f,l);});

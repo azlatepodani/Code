@@ -165,6 +165,21 @@ inline void radix_sort(int32_t* first, int32_t* last)
 	for (; f!=l; ++f) *f -= 0x80000000;
 }
 
+
+inline void radix_sort(float* first, float* last) 
+{
+	uint32_t* f = (uint32_t*)first;
+	uint32_t* l = (uint32_t*)last;
+	
+	for (; f!=l; ++f) *f ^= (*f & 0x80000000) ? 0xFFFFFFFF : 0x80000000;
+	
+	f = (uint32_t*)first;
+	radix_sort(f,l);
+	
+	for (; f!=l; ++f) *f ^= (*f & 0x80000000) ? 0x80000000 : 0xFFFFFFFF;
+}
+
+
 //
 // Utility function for strings of char like values
 //
