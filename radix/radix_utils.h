@@ -4,6 +4,7 @@
 #include <utility>
 #include <algorithm>
 #include <string.h>
+#include "include/type_traits.h"
 
 
 //
@@ -32,6 +33,37 @@ using vector_key_t = int32_t;
 //
 // The following types implement the ExtractKey concept's requirements
 //
+
+
+struct cb_context {
+	int32_t round;
+};
+
+
+template <typename T>
+uint8_t current_byte_imp(const enable_if_int_t<T>& val, int32_t round) {
+	return uint8_t(val >> (sizeof(T) - round - 1));
+}
+
+template <>
+uint8_t current_byte_imp<uint8_t>(const uint8_t& val, int32_t) {
+	return val;
+}
+
+
+
+template <typename RandomIt, typename ExtractKey>
+uint8_t current_byte(RandomIt it, ExtractKey&& ek, cb_context& context) {
+	const auto& key = ek(*it);
+	return current_byte_imp<decltype(key)>(key, context.round);
+}
+
+
+template <typename T>
+struct IdentityKey {
+	const T& operator()(const T& key) { return key; }
+};
+
 	
 //	
 // Helper functor for the simplest case - identity mapping
