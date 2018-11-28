@@ -12,6 +12,8 @@
 
 #pragma comment(lib, "libjson.lib")
 
+using namespace azp;
+
 
 // https://github.com/open-source-parsers/jsoncpp
 

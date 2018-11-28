@@ -11,6 +11,7 @@
 
 
 using namespace rapidjson;
+using namespace azp;
 
 
 // https://github.com/Tencent/rapidjson
