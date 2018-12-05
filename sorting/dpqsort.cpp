@@ -9,7 +9,8 @@
 using std::iter_swap;
 
 
-constexpr int sort_threshold = 16;
+constexpr int sort_threshold = 32;
+constexpr int large_middle_threshold = 15;
 
 
 /*
@@ -77,9 +78,8 @@ Returns:
 */
 template <typename RandIt>
 std::pair<RandIt, RandIt> three_way_partition(RandIt first, RandIt last) {
-    using T = decltype(*first);
-	T p1 = *first;
-	T p2 = *last;
+	auto& p1 = *first;
+	auto& p2 = *last;
 	
 	auto lessPtr = first + 1;
 	auto greaterPtr = last - 1;
@@ -116,30 +116,36 @@ std::pair<RandIt, RandIt> three_way_partition(RandIt first, RandIt last) {
 
 template <typename RandIt>
 std::pair<RandIt, RandIt> remove_pivots(RandIt first, RandIt last) {
-    using T = decltype(*first);
-    T p1 = *first++;
-    T p2 = *last--;
+    auto& p1 = *first;
+    auto& p2 = *last;
     
-    auto less = first;
-    auto greater = last;
+    auto lessPtr = first + 1;
+	auto greaterPtr = last - 1;
     
-    while (first != greater) {
-        if (*first == p1) {
-            iter_swap(less, first);
-            ++less;
-        }
-        else if (*first == p2) {
-            iter_swap(first, greater);
-            --greater;
+    while (*lessPtr == p1) ++lessPtr;
+    while (*greaterPtr == p2) --greaterPtr;
+    
+	for (auto cur = lessPtr; cur <= greaterPtr; ++cur) {
+		if (*cur == p1) {
+			iter_swap(cur, lessPtr);
+			++lessPtr;
+		}
+		else if (*cur == p2) {
+			iter_swap(cur, greaterPtr);
+			--greaterPtr;
             
-            if (*first == p1) {
-                iter_swap(less, first);
-                ++less;
-            }
-        }
-    }
+            while (*greaterPtr == p2 && cur < greaterPtr)
+				--greaterPtr;
+
+			if (*cur == p1) {
+				iter_swap(cur, lessPtr);
+				++lessPtr;
+			}
+		}
+		else { }
+	}
     
-    return std::make_pair(less, greater);
+    return std::make_pair(lessPtr, greaterPtr+1); // semi-open interval
 }
 
 
@@ -157,11 +163,14 @@ void dpsort(RandIt first, RandIt last) {
         
 		dpsort(first, mid.first);
         
-        // if ((mid.second - mid.first > diff - 13) && (*mid.first != *mid.second))
-            // remove_pivots(mid.first, mid.second);
-        
-        if (differentPivots)
-            dpsort(mid.first+1, mid.second); // skip the pivots since they are the min & max of the middle interval
+        if (differentPivots) {
+            decltype(mid) m2{mid.first+1, mid.second};
+            if (mid.second - mid.first > diff - large_middle_threshold) {
+                m2 = remove_pivots(mid.first, mid.second);
+            }
+
+            dpsort(m2.first, m2.second); // skip the pivots since they are the min & max of the middle interval
+        }
         
 		dpsort(mid.second+1, last);
 	}
@@ -171,37 +180,6 @@ void dpsort(RandIt first, RandIt last) {
 	}
 }
 
-
-// template <typename RandIt>
-// void dpsort_imp(RandIt first, RandIt last) {
-    // auto diff = last - first;
-	// if (diff > sort_threshold) {
-		// bool differentPivots = two_of_five(first, last-1);
-        
-		// auto mid = three_way_partition(first, last-1);
-        
-		// dpsort_imp(first, mid.first);
-        
-        // // if ((mid.second - mid.first > diff - 13) && (*mid.first != *mid.second))
-            // // remove_pivots(mid.first, mid.second);
-        
-        // if (differentPivots)
-            // dpsort_imp(mid.first+1, mid.second); // skip the pivots since they are the min & max of the middle interval
-        
-		// dpsort_imp(mid.second+1, last);
-	// }
-// }
-
-
-// template <class _RandomAccessIter>
-// void __final_insertion_sort(_RandomAccessIter __first, 
-                            // _RandomAccessIter __last);
-
-// template <typename RandIt>
-// void dpsort(RandIt first, RandIt last) {
-    // dpsort_imp(first, last);
-    // //__final_insertion_sort(first, last);
-// }
 
 
 
@@ -214,29 +192,29 @@ void __unguarded_linear_insert(_RandomAccessIter __last, _Tp __val) {
   _RandomAccessIter __next = __last;
   --__next;
   while (__val < *__next) {
-    *__last = *__next;
+    *__last = std::move(*__next);
     __last = __next;
     --__next;
   }
-  *__last = __val;
+  *__last = std::move(__val);
 }
 
 template <class _RandomAccessIter, class _Tp>
 inline void __linear_insert(_RandomAccessIter __first, 
                             _RandomAccessIter __last, _Tp*) {
-  _Tp __val = *__last;
+  _Tp __val = std::move(*__last);
   if (__val < *__first) {
     std::copy_backward(__first, __last, __last + 1);
-    *__first = __val;
+    *__first = std::move(__val);
   }
   else
-    __unguarded_linear_insert(__last, __val);
+    __unguarded_linear_insert(__last, std::move(__val));
 }
 
 
 template <class _RandomAccessIter>
 void __insertion_sort(_RandomAccessIter __first, _RandomAccessIter __last) {
-  if (__first == __last) return; 
+  if (__last-__first < 2) return; 
   using T = std::decay_t<decltype(*__first)>;
   for (_RandomAccessIter __i = __first + 1; __i != __last; ++__i)
     __linear_insert(__first, __i, (T*)0);
@@ -297,7 +275,7 @@ static void CustomArgumentsInt(benchmark::internal::Benchmark* b) {
 
 static void CustomArgumentsStr(benchmark::internal::Benchmark* b) {
 	int size = 100;
-	for (int i = 0; i <= 9; ++i) {
+	for (int i = 0; i <= 11; ++i) {
 		b->Arg(size);
 		size *= 2;
 	}
