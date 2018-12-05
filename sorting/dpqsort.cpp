@@ -11,6 +11,11 @@ using std::iter_swap;
 
 constexpr int sort_threshold = 32;
 constexpr int large_middle_threshold = 15;
+constexpr int introsort_threshold = 716'800;    // in bytes == 700KB
+
+
+template<class RandIt, class _Pr> inline
+void _Guess_median_unchecked(RandIt _First, RandIt _Mid, RandIt _Last, _Pr _Pred);
 
 
 /*
@@ -31,6 +36,11 @@ bool two_of_five(RandIt first, RandIt last) {
 	auto c3 = c2 + quarter; 
 	auto c4 = c3 + quarter; 
 	auto c5 = last;
+    
+    // auto cmp = [](RandIt a, RandIt b) { return *a < *b; };
+    
+    // ::_Guess_median_unchecked(c1, c2, c3, cmp);
+    // ::_Guess_median_unchecked(c3, c4, c5, cmp);
 	
 	/*
 	c1-------------c2-------------c3----
@@ -40,6 +50,7 @@ bool two_of_five(RandIt first, RandIt last) {
 	c3-------------c2-------------c1----
 	c3-------------c1-------------c2----
 	*/
+    //*
 	if (*c2 < *c1) {
 		if (*c1 < *c3) { } // all good (*c1 is the median)
 		else if (*c3 < *c2) iter_swap(c2, c1);
@@ -62,7 +73,10 @@ bool two_of_five(RandIt first, RandIt last) {
 			 else iter_swap(c3, c5);
 	}
 	
-	if (*c5 < *c1) iter_swap(c5, c1);
+	if (*c5 < *c1) iter_swap(c5, c1);//*/
+    /*if (*c4 < *c2) iter_swap(c4, c2);
+    iter_swap(c4, c5);
+    iter_swap(c1, c2);*/
     
     return *c5 != *c1;
 }
@@ -96,7 +110,7 @@ std::pair<RandIt, RandIt> three_way_partition(RandIt first, RandIt last) {
 			iter_swap(cur, greaterPtr);
 			--greaterPtr;
             
-            while (*greaterPtr > p2 && cur < greaterPtr)
+            while (*greaterPtr > p2/* && cur < greaterPtr*/)
 				--greaterPtr;
 
 			if (*cur < p1) {
@@ -181,35 +195,132 @@ void dpsort(RandIt first, RandIt last) {
 }
 
 
+/// Swaps the median value of *a, *b and *c under comp to *result
+template <typename RandIt, typename _Compare>
+void move_median_to_first(RandIt result, RandIt a, RandIt b, RandIt c, _Compare comp)
+{
+    if (comp(a, b))
+    {
+        if (comp(b, c))
+            std::iter_swap(result, b);
+        else if (comp(a, c))
+            std::iter_swap(result, c);
+        else
+            std::iter_swap(result, a);
+    }
+    else if (comp(a, c))
+        std::iter_swap(result, a);
+    else if (comp(b, c))
+        std::iter_swap(result, c);
+    else
+        std::iter_swap(result, b);
+}
+
+
+template <class RandIt, class _Pr> inline
+void _Med3_unchecked(RandIt _First, RandIt _Mid, RandIt _Last, _Pr _Pred)
+{	// sort median of three elements to middle
+    if (_Pred(_Mid, _First))
+    {
+        std::iter_swap(_Mid, _First);
+    }
+
+    if (_Pred(_Last, _Mid))
+    {	// swap middle and last, then test first again
+        std::iter_swap(_Last, _Mid);
+
+        if (_Pred(_Mid, _First))
+        {
+            std::iter_swap(_Mid, _First);
+        }
+    }
+}
+
+template<class RandIt, class _Pr> inline
+void _Guess_median_unchecked(RandIt _First, RandIt _Mid, RandIt _Last, _Pr _Pred)
+{	// sort median element to middle
+    auto _Count = _Last - _First;
+    if (40 < _Count)
+    {	// median of nine
+        auto _Step = (_Count + 1) >> 3; // +1 can't overflow because range was made inclusive in caller
+        auto _Two_step = _Step << 1; // note: intentionally discards low-order bit
+        ::_Med3_unchecked(_First, _First + _Step, _First + _Two_step, _Pred);
+        ::_Med3_unchecked(_Mid - _Step, _Mid, _Mid + _Step, _Pred);
+        ::_Med3_unchecked(_Last - _Two_step, _Last - _Step, _Last, _Pred);
+        ::_Med3_unchecked(_First + _Step, _Mid, _Last - _Step, _Pred);
+    }
+    else
+    {
+        ::_Med3_unchecked(_First, _Mid, _Last, _Pred);
+    }
+}
+
+
+/// This is a helper function...
+template <typename RandIt, typename _Compare>
+RandIt unguarded_partition(RandIt first, RandIt last, RandIt pivot, _Compare comp)
+{
+    while (true) {
+        while (comp(first, pivot))
+            ++first;
+        
+        --last;
+        while (comp(pivot, last))
+            --last;
+        
+        if (!(first < last))
+            return first;
+        
+        std::iter_swap(first, last);
+        ++first;
+    }
+}
+
+
+/// This is a helper function...
+template <typename RandIt, typename _Compare>
+inline RandIt unguarded_partition_pivot(RandIt first, RandIt last, _Compare comp)
+{
+    RandIt mid = first + (last - first) / 2;
+    //move_median_to_first(first, first + 1, mid, last - 1, comp);
+    ::_Guess_median_unchecked(first, mid, last-1, comp);
+    std::iter_swap(first, mid);
+    return unguarded_partition(first + 1, last, first, comp);
+}
+
+
+template <typename RandIt, typename _Compare>
+void introsort_loop(RandIt first, RandIt last, _Compare comp)
+{
+    //auto diff = last - first;
+    auto itemSize = sizeof(decltype(*first));
+    
+    while ((last - first)*itemSize > introsort_threshold) {
+        RandIt cut = unguarded_partition_pivot(first, last, comp);
+        introsort_loop(cut, last, comp);
+        last = cut;
+    }
+    
+    dpsort(first, last);
+}
+
+
+
 template <typename RandIt>
 void dpsort2(RandIt first, RandIt last) {
     auto diff = last - first;
-	if (diff > sort_threshold) {
-		bool differentPivots = two_of_five(first, last-1);
-        
-		auto mid = three_way_partition(first, last-1);
-        
-		dpsort(first, mid.first);
-        
-        if (differentPivots) {
-            decltype(mid) m2{mid.first+1, mid.second}; // skip the pivots since they are the min & max of the middle interval
-            
-            if (mid.second - mid.first > diff - large_middle_threshold) {
-                m2 = remove_pivots(mid.first, mid.second);
-            }
-
-            dpsort(m2.first, m2.second);
-        }
-        
-		dpsort(mid.second+1, last); // skip the pivots since they are the min & max of the middle interval
+    auto itemSize = sizeof(decltype(*first));
+    
+    if (diff*itemSize > introsort_threshold) {
+		introsort_loop(first, last, [](RandIt a, RandIt b) { return *a < *b; });
 	}
 	else {
-        insertion_sort(first, last);
+        dpsort(first, last);
 	}
 }
 
 
-template <class RandIt>
+template <typename RandIt>
 void insertion_sort(RandIt first, RandIt last) {
     if (last-first < 2) return; 
     
@@ -254,16 +365,16 @@ std::mt19937 g(0xCC6699);
 
 
 static void CustomArgumentsInt(benchmark::internal::Benchmark* b) {
-	int size = 100;
-	for (int i = 0; i <= 10; ++i) {
+	int size = 6400;
+	for (int i = 0; i <= 7; ++i) {
 		b->Arg(size);
 		size *= 4;
 	}
 }
 
 static void CustomArgumentsStr(benchmark::internal::Benchmark* b) {
-	int size = 100;
-	for (int i = 0; i <= 11; ++i) {
+	int size = 1600;
+	for (int i = 0; i <= 7; ++i) {
 		b->Arg(size);
 		size *= 2;
 	}
@@ -367,7 +478,7 @@ using I32Fix = TestFixtureInt<int32_t>;
 BENCHMARK_DEFINE_F(I32Fix, Obj)(benchmark::State& state)
 {
 	for (auto _ : state) {
-		dpsort(&vec[0], &vec[0]+vec.size());
+		dpsort2(&vec[0], &vec[0]+vec.size());
         //if (!std::is_sorted(vec.begin(), vec.end())) __debugbreak();
 	}
 }
@@ -378,7 +489,7 @@ using SSFix = TestFixtureStr<std::string>;
 BENCHMARK_DEFINE_F(SSFix, Obj)(benchmark::State& state)
 {
 	for (auto _ : state) {
-		dpsort(&vec[0], &vec[0]+vec.size());
+		dpsort2(&vec[0], &vec[0]+vec.size());
         //if (!std::is_sorted(vec.begin(), vec.end())) __debugbreak();
 	}
 }
@@ -389,7 +500,7 @@ using SwSFix = TestFixtureStr<std::wstring>;
 BENCHMARK_DEFINE_F(SwSFix, Obj)(benchmark::State& state)
 {
 	for (auto _ : state) {
-		dpsort(&vec[0], &vec[0]+vec.size());
+		dpsort2(&vec[0], &vec[0]+vec.size());
         //if (!std::is_sorted(vec.begin(), vec.end())) __debugbreak();
 	}
 }
