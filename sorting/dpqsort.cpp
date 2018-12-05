@@ -149,8 +149,8 @@ std::pair<RandIt, RandIt> remove_pivots(RandIt first, RandIt last) {
 }
 
 
-template <class _RandomAccessIter>
-void __insertion_sort(_RandomAccessIter __first, _RandomAccessIter __last);
+template <class RandIt>
+void insertion_sort(RandIt first, RandIt last);
 
 
 template <typename RandIt>
@@ -164,85 +164,73 @@ void dpsort(RandIt first, RandIt last) {
 		dpsort(first, mid.first);
         
         if (differentPivots) {
-            decltype(mid) m2{mid.first+1, mid.second};
+            decltype(mid) m2{mid.first+1, mid.second}; // skip the pivots since they are the min & max of the middle interval
+            
             if (mid.second - mid.first > diff - large_middle_threshold) {
                 m2 = remove_pivots(mid.first, mid.second);
             }
 
-            dpsort(m2.first, m2.second); // skip the pivots since they are the min & max of the middle interval
+            dpsort(m2.first, m2.second);
         }
         
-		dpsort(mid.second+1, last);
+		dpsort(mid.second+1, last); // skip the pivots since they are the min & max of the middle interval
 	}
 	else {
-		//std::sort(first, last);
-        __insertion_sort(first, last);
+        insertion_sort(first, last);
 	}
 }
 
 
+template <typename RandIt>
+void dpsort2(RandIt first, RandIt last) {
+    auto diff = last - first;
+	if (diff > sort_threshold) {
+		bool differentPivots = two_of_five(first, last-1);
+        
+		auto mid = three_way_partition(first, last-1);
+        
+		dpsort(first, mid.first);
+        
+        if (differentPivots) {
+            decltype(mid) m2{mid.first+1, mid.second}; // skip the pivots since they are the min & max of the middle interval
+            
+            if (mid.second - mid.first > diff - large_middle_threshold) {
+                m2 = remove_pivots(mid.first, mid.second);
+            }
 
-
-
-
-// sort() and its auxiliary functions. 
-
-template <class _RandomAccessIter, class _Tp>
-void __unguarded_linear_insert(_RandomAccessIter __last, _Tp __val) {
-  _RandomAccessIter __next = __last;
-  --__next;
-  while (__val < *__next) {
-    *__last = std::move(*__next);
-    __last = __next;
-    --__next;
-  }
-  *__last = std::move(__val);
-}
-
-template <class _RandomAccessIter, class _Tp>
-inline void __linear_insert(_RandomAccessIter __first, 
-                            _RandomAccessIter __last, _Tp*) {
-  _Tp __val = std::move(*__last);
-  if (__val < *__first) {
-    std::copy_backward(__first, __last, __last + 1);
-    *__first = std::move(__val);
-  }
-  else
-    __unguarded_linear_insert(__last, std::move(__val));
+            dpsort(m2.first, m2.second);
+        }
+        
+		dpsort(mid.second+1, last); // skip the pivots since they are the min & max of the middle interval
+	}
+	else {
+        insertion_sort(first, last);
+	}
 }
 
 
-template <class _RandomAccessIter>
-void __insertion_sort(_RandomAccessIter __first, _RandomAccessIter __last) {
-  if (__last-__first < 2) return; 
-  using T = std::decay_t<decltype(*__first)>;
-  for (_RandomAccessIter __i = __first + 1; __i != __last; ++__i)
-    __linear_insert(__first, __i, (T*)0);
-}
+template <class RandIt>
+void insertion_sort(RandIt first, RandIt last) {
+    if (last-first < 2) return; 
+    
+    for (RandIt i = first + 1; i != last; ++i) {
+        auto val = std::move(*i);
+        
+        if (val < *first) {
+            std::copy_backward(first, i, i + 1);
+            *first = std::move(val);
+        }
+        else {
+            RandIt hole = i;
+            
+            for (RandIt next = i-1; val < *next; --next) {
+                *hole = std::move(*next);
+                hole = next;
+            }
 
-template <class _RandomAccessIter, class _Tp>
-void __unguarded_insertion_sort_aux(_RandomAccessIter __first, 
-                                    _RandomAccessIter __last, _Tp*) {
-  for (_RandomAccessIter __i = __first; __i != __last; ++__i)
-    __unguarded_linear_insert(__i, _Tp(*__i));
-}
-
-template <class _RandomAccessIter>
-inline void __unguarded_insertion_sort(_RandomAccessIter __first, 
-                                _RandomAccessIter __last) {
-    using T = std::decay_t<decltype(*__first)>;
-    __unguarded_insertion_sort_aux(__first, __last, (T*)0);
-}
-
-template <class _RandomAccessIter>
-void __final_insertion_sort(_RandomAccessIter __first, 
-                            _RandomAccessIter __last) {
-  if (__last - __first > sort_threshold) {
-    __insertion_sort(__first, __first + sort_threshold);
-    __unguarded_insertion_sort(__first + sort_threshold, __last);
-  }
-  else
-    __insertion_sort(__first, __last);
+            *hole = std::move(val);
+        }
+    }
 }
 
 
