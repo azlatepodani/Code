@@ -42,7 +42,7 @@ bool parseJson(parser_t& p, char * first, char * last) {
 bool parseJson(parser_t& p, const char * first, const char * last)
 {
 	auto size = last - first;
-	std::unique_ptr<char> buf(new (std::nothrow) char[size]);
+	std::unique_ptr<char[]> buf(new (std::nothrow) char[size]);
 	
 	if (!buf) return parse_error(p, Runtime_error, nullptr);
 	

@@ -317,8 +317,8 @@ static size_t number_size(int32_t num) {
 	
 	if (num >= 0) n = num;
 	else {
+		if ((uint32_t)num == 0x80000000U) return 11;
 		n = -num;
-		if (n == 0x80000000UL) return 11;
 		negative = 1;	// minus sign
 	}
 	
@@ -357,8 +357,8 @@ static size_t number_size(int64_t num) {
 	
 	if (num >= 0) n = num;
 	else {
+		if ((uint64_t)num == 0x8000000000000000ULL) return 20;
 		n = -num;
-		if (n == 0x8000000000000000ULL) return 20;
 		negative = 1;
 	}
 	
