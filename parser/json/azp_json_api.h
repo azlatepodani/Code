@@ -238,29 +238,9 @@ inline JsonObjectField::JsonObjectField(const char* name_, JsonValue value_)
 	_initString(JsonString(name_));
 }
 
-inline JsonObjectField::JsonObjectField(const JsonObjectField& other) 
-	: type(String)
-	, value(other.value)
-{
-	if (other.type == String) {
-		_initString(JsonString(other.name.s));
-	}
-	else {
-		// String_view is not owning the pointer, so we convert it to String
-		auto& v = other.name.v;
-		_initString(JsonString(v.str, v.str + v.len));
-	}
-}
-
-inline JsonObjectField::JsonObjectField(JsonObjectField&& other) noexcept
-	: type(other.type)
-	, value(std::move(other.value))
-{
-	if (type == String) {
-		_initString(std::move(other.name.s));
-	}
-	else {
-		name.v = other.name.v;
+inline JsonObjectField::~JsonObjectField() noexcept {
+    if (type == String) {
+		name.s.~JsonString();
 	}
 }
 

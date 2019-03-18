@@ -704,9 +704,30 @@ JsonObjectField& JsonObjectField::operator=(JsonObjectField&& other) noexcept {
 }
 
 
-JsonObjectField::~JsonObjectField() noexcept {
-    if (type == String) {
-		name.s.~JsonString();
+JsonObjectField::JsonObjectField(const JsonObjectField& other) 
+	: type(String)
+	, value(other.value)
+{
+	if (other.type == String) {
+		_initString(JsonString(other.name.s));
+	}
+	else {
+		// String_view is not owning the pointer, so we convert it to String
+		auto& v = other.name.v;
+		_initString(JsonString(v.str, v.str + v.len));
+	}
+}
+
+
+JsonObjectField::JsonObjectField(JsonObjectField&& other) noexcept
+	: type(other.type)
+	, value(std::move(other.value))
+{
+	if (type == String) {
+		_initString(std::move(other.name.s));
+	}
+	else {
+		name.v = other.name.v;
 	}
 }
 
