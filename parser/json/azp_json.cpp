@@ -42,7 +42,7 @@ bool parseJson(parser_t& p, char * first, char * last) {
 bool parseJson(parser_t& p, const char * first, const char * last)
 {
 	auto size = last - first;
-	std::unique_ptr<char> buf(new (std::nothrow) char[size]);
+	std::unique_ptr<char[]> buf(new (std::nothrow) char[size]);
 	
 	if (!buf) return parse_error(p, Runtime_error, nullptr);
 	
@@ -77,9 +77,9 @@ static bool parseJsonScalarV(parser_base_t& p, char * first, char * last);
 
 struct dec_on_exit {
 	// cppcheck-suppress noExplicitConstructor
-	dec_on_exit(int32_t& val) : val(val) {}
+	dec_on_exit(uint32_t& val) : val(val) {}
 	~dec_on_exit() { --val; }
-	int32_t& val;
+	uint32_t& val;
 };
 
 

@@ -23,6 +23,7 @@ struct string_view_t {
 	size_t len;
 };
 
+
 //
 // Models the JSON data. Minimal implementation.
 //
@@ -58,23 +59,24 @@ struct JsonValue {
 	JsonValue(JsonValue&& other) noexcept;
 	
 	explicit JsonValue(std::nullptr_t) noexcept;
-	explicit JsonValue(JsonObject obj);
-	explicit JsonValue(JsonArray arr);
+	explicit JsonValue(JsonObject obj) noexcept;
+	explicit JsonValue(JsonArray arr) noexcept;
 	explicit JsonValue(int64_t num) noexcept;
 	explicit JsonValue(double num) noexcept;
 	explicit JsonValue(JsonString str) noexcept;
 	explicit JsonValue(const char* str);
-	explicit JsonValue(string_view_t str) noexcept;
+	explicit JsonValue(const string_view_t& str) noexcept;
 	explicit JsonValue(bool val) noexcept;
 	
 	JsonValue& operator=(const JsonValue& other);
 	JsonValue& operator=(JsonValue&& other) noexcept;
 	
-    ~JsonValue();
+    ~JsonValue() noexcept;
 	
 protected:
 	void _initString(JsonString&& str) noexcept;
 };
+
 
 //
 // Serializes the JsonValue to a ECMA-404 'The JSON Data Interchange Standard' string.
@@ -96,29 +98,45 @@ void json_writer(std::string& stm, const JsonValue& val);
 std::pair<JsonValue, std::string> json_reader(const std::string& stm);
 
 
+
 struct JsonObjectField {
-	JsonString  name;
+	enum NameTypes {
+		String,
+		String_view,
+		Max_types
+	};
+	
+	union Impl {
+		JsonString    s;
+		string_view_t v;
+		
+		Impl() { }
+		~Impl() { }
+	};
+	
+	NameTypes  type;
+	Impl  name;
 	JsonValue  value;
 	
-	JsonObjectField() = default;
+	JsonObjectField() noexcept;
+	~JsonObjectField() noexcept;
 	
 	// cppcheck-suppress passedByValue
-	JsonObjectField(JsonString name_, JsonValue value_)
-		: name(std::move(name_)), value(std::move(value_)) { }
+	JsonObjectField(JsonString name_, JsonValue value_) noexcept;
+	// cppcheck-suppress passedByValue
+	JsonObjectField(const string_view_t& name_, JsonValue value_) noexcept;
+	// cppcheck-suppress passedByValue
+	JsonObjectField(const char* name_, JsonValue value_);
 	
-	JsonObjectField(const JsonObjectField& other)
-		: name(other.name)
-		, value(other.value)
-	{ }
+	JsonObjectField(const JsonObjectField& other);
+	JsonObjectField(JsonObjectField&& other) noexcept;
+	JsonObjectField& operator=(const JsonObjectField& other);
+	JsonObjectField& operator=(JsonObjectField&& other) noexcept;
 	
-	JsonObjectField(JsonObjectField&& other) noexcept = default;
-	JsonObjectField& operator=(const JsonObjectField& other) = default;
+	void _initString(JsonString&& str) noexcept;
 	
-	JsonObjectField& operator=(JsonObjectField&& other) noexcept { // = default;	// clang bug
-		name = std::move(other.name);
-		value = std::move(other.value);
-		return *this;
-	}
+	size_t nameSize() const noexcept;
+	const char* nameStr() const noexcept;
 };
 
 //
@@ -139,13 +157,13 @@ inline JsonValue::JsonValue(JsonValue&& other) noexcept
 
 inline JsonValue::JsonValue(std::nullptr_t) noexcept : type(Empty) { }
 
-inline JsonValue::JsonValue(JsonObject obj)
+inline JsonValue::JsonValue(JsonObject obj) noexcept
 	: type(Object)
 {
 	new (&u.object) JsonObject(std::move(obj));
 }
 
-inline JsonValue::JsonValue(JsonArray arr)
+inline JsonValue::JsonValue(JsonArray arr) noexcept
 	: type(Array)
 {
 	new (&u.array) JsonArray(std::move(arr));
@@ -179,13 +197,87 @@ inline JsonValue::JsonValue(const char* str)
 	_initString(JsonString(str));
 }
 
-inline JsonValue::JsonValue(string_view_t str) noexcept
+inline JsonValue::JsonValue(const string_view_t& str) noexcept
 	: type(String_view)
 {
 	u.view = str;
 }
 
 inline JsonValue::JsonValue(bool val) noexcept : type(val ? Bool_true : Bool_false) { }
+
+
+
+inline void JsonObjectField::_initString(JsonString&& str) noexcept {
+	new (&name.s) JsonString(std::move(str));
+}
+
+inline JsonObjectField::JsonObjectField() noexcept
+	: type(String)
+{
+	_initString(JsonString());
+}
+
+inline JsonObjectField::JsonObjectField(JsonString name_, JsonValue value_) noexcept
+	: type(String)
+	, value(std::move(value_))
+{
+	_initString(std::move(name_));
+}
+
+inline JsonObjectField::JsonObjectField(const string_view_t& name_, JsonValue value_) noexcept
+	: type(String_view)
+	, value(std::move(value_))
+{
+	name.v = name_;
+}
+
+inline JsonObjectField::JsonObjectField(const char* name_, JsonValue value_)
+	: type(String)
+	, value(std::move(value_))
+{
+	_initString(JsonString(name_));
+}
+
+inline JsonObjectField::JsonObjectField(const JsonObjectField& other) 
+	: type(String)
+	, value(other.value)
+{
+	if (other.type == String) {
+		_initString(JsonString(other.name.s));
+	}
+	else {
+		// String_view is not owning the pointer, so we convert it to String
+		auto& v = other.name.v;
+		_initString(JsonString(v.str, v.str + v.len));
+	}
+}
+
+inline JsonObjectField::JsonObjectField(JsonObjectField&& other) noexcept
+	: type(other.type)
+	, value(std::move(other.value))
+{
+	if (type == String) {
+		_initString(std::move(other.name.s));
+	}
+	else {
+		name.v = other.name.v;
+	}
+}
+
+inline JsonObjectField& JsonObjectField::operator=(const JsonObjectField& other) {
+	JsonObjectField tmp(other);
+	std::swap(*this, tmp);
+	return *this;
+}
+
+inline size_t JsonObjectField::nameSize() const noexcept {
+	return (type == String) ? name.s.size() : name.v.len;
+}
+
+inline const char* JsonObjectField::nameStr() const noexcept {
+	return (type == String) ? name.s.c_str() : name.v.str;
+}
+
 
 
 } // namespace asu

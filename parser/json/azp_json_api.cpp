@@ -158,7 +158,7 @@ JsonValue& JsonValue::operator=(JsonValue&& other) noexcept {
 }
 
 
-JsonValue::~JsonValue() {
+JsonValue::~JsonValue() noexcept {
     switch (type) {
 		case Object:
 			u.object.~JsonObject();
@@ -317,8 +317,8 @@ static size_t number_size(int32_t num) {
 	
 	if (num >= 0) n = num;
 	else {
+		if ((uint32_t)num == 0x80000000U) return 11;
 		n = -num;
-		if (n == 0x80000000UL) return 11;
 		negative = 1;	// minus sign
 	}
 	
@@ -357,8 +357,8 @@ static size_t number_size(int64_t num) {
 	
 	if (num >= 0) n = num;
 	else {
+		if ((uint64_t)num == 0x8000000000000000ULL) return 20;
 		n = -num;
-		if (n == 0x8000000000000000ULL) return 20;
 		negative = 1;
 	}
 	
@@ -377,10 +377,10 @@ static size_t json_writer_object_size(const JsonObject& val) {
 	
 	if (val.cbegin() != val.cend()) {
 		auto it = val.cbegin();
-		size += 3 + it->name.size();
+		size += 3 + it->nameSize();
 		size += json_writer_size(it->value);
 		for (++it; it != val.cend(); ++it) {
-			size += 4 + it->name.size();
+			size += 4 + it->nameSize();
 			size += json_writer_size(it->value);
 		}
 	}
@@ -510,14 +510,14 @@ static void json_writer_object(std::string& stm, const JsonObject& val) {
 	if (val.cbegin() != val.cend()) {
 		auto it = val.cbegin();
 		stm.push_back('"');
-		jsonEscape(it->name.c_str(), it->name.size(), stm);
+		jsonEscape(it->nameStr(), it->nameSize(), stm);
 		stm.push_back('"');
 		stm.push_back(':');
 		json_writer_imp(stm, it->value);
 		for (++it; it != val.cend(); ++it) {
 			stm.push_back(',');
 			stm.push_back('"');
-			jsonEscape(it->name.c_str(), it->name.size(), stm);
+			jsonEscape(it->nameStr(), it->nameSize(), stm);
 			stm.push_back('"');
 			stm.push_back(':');
 			json_writer_imp(stm, it->value);
@@ -567,7 +567,7 @@ static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val
 	if (!cbCtx.firstCall) {
 		if (type == Object_key) {
 			JsonValue& obj = cbCtx.stack.back();
-			obj.u.object.push_back(JsonObjectField(std::string(value.string.p, value.string.len), JsonValue()));
+			obj.u.object.push_back(JsonObjectField(string_view_t{value.string.p, value.string.len}, JsonValue()));
 			return true;
 		}
 		
@@ -671,6 +671,43 @@ static std::string double_to_string(double dbl) {
     char buf[340] = { 0, };
     auto len = sprintf(buf, "%.*g", DBL_DECIMAL_DIG, dbl);
     return std::string(buf, buf+len);
+}
+
+
+
+JsonObjectField& JsonObjectField::operator=(JsonObjectField&& other) noexcept {
+	if (type == other.type) {
+		if (type == String) {
+			name.s = other.name.s;
+		}
+		else {
+			// String_view is not owning the pointer, so we convert it to String
+			auto& v = other.name.v;
+			_initString(JsonString(v.str, v.str + v.len));
+		}
+	}
+	else {
+		if (type == String) {
+			// String_view is not owning the pointer, so we convert it to String
+			auto& v = other.name.v;
+			name.s.assign(v.str, v.len);
+		}
+		else {
+			_initString(std::move(other.name.s));
+		}
+	}
+	
+	type = String;
+	value = other.value;
+
+	return *this;
+}
+
+
+JsonObjectField::~JsonObjectField() noexcept {
+    if (type == String) {
+		name.s.~JsonString();
+	}
 }
 
 

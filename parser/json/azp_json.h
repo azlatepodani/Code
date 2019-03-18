@@ -89,8 +89,8 @@ struct parser_base_t {
 	char * parsed;			// position after the last character parsed
 	void * context;			// callback context
 	parser_callback_t callback;	// user callback
-	int32_t recursion;			// current nesting level
-	int32_t max_recursion;		// maximum nesting level
+	uint32_t recursion;			// current nesting level
+	uint32_t max_recursion;		// maximum nesting level
 	ParserErrors error;		// error hint
 	size_t err_position;	// error position
 	const char * _first;	// saved pointer to buffer start
@@ -109,12 +109,11 @@ public:
 		context = ctx;
 	}
 
-	// maxr should be > 0.
-	void set_max_recursion(int32_t maxr) {
+	void set_max_recursion(uint32_t maxr) {
 		max_recursion = maxr;
 	}
 	
-	int32_t get_max_recursion() const {
+	uint32_t get_max_recursion() const {
 		return max_recursion;
 	}
 	
