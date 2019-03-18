@@ -110,7 +110,7 @@ std::pair<RandIt, RandIt> three_way_partition(RandIt first, RandIt last) {
 			iter_swap(cur, greaterPtr);
 			--greaterPtr;
             
-            while (*greaterPtr > p2/* && cur < greaterPtr*/)
+            while (*greaterPtr > p2)
 				--greaterPtr;
 
 			if (*cur < p1) {
