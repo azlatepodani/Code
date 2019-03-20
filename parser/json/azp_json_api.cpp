@@ -39,9 +39,13 @@ struct pred {
 			rsize = right.name.v.len;
 		}
 		
-		int cmp = strncmp(lptr, rptr, std::min(lsize, rsize));
-		if (cmp < 0) return true;
-		return (cmp == 0) ? lsize < rsize : false;
+		auto msize = std::min(lsize, rsize);
+		while (msize--) {
+			auto c = *lptr++ - *rptr++;
+			if (c) return c < 0;
+		}
+		
+		return lsize < rsize;
 	}
 };
 
@@ -716,21 +720,14 @@ static std::string double_to_string(double dbl) {
 
 JsonObjectField& JsonObjectField::operator=(JsonObjectField&& other) noexcept {
 	if (type == String) {
-		if (other.type == String) {
-			name.s = std::move(other.name.s);
-		}
-		else {
-			name.s.~JsonString();
-			name.v = other.name.v;
-		}
+		name.s.~JsonString();
+	}
+	
+	if (other.type == String) {
+		_initString(std::move(other.name.s));
 	}
 	else {
-		if (other.type == String) {
-			_initString(std::move(other.name.s));
-		}
-		else {
-			name.v = other.name.v;
-		}
+		name.v = other.name.v;
 	}
 
 	type = other.type;
