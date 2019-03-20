@@ -14,6 +14,16 @@
 namespace azp {
 
 
+
+struct pred {
+	bool operator()(const JsonObjectField& left, const JsonObjectField& right) {
+		int cmp = strncmp(left.nameStr(), right.nameStr(), std::min(left.nameSize(), right.nameSize()));
+		if (cmp < 0) return true;
+		return (cmp == 0) ? left.nameSize() < right.nameSize() : false;
+	}
+};
+
+
 JsonValue& JsonValue::operator=(const JsonValue& other) {
 	if (type == other.type) {
 		//
@@ -591,6 +601,13 @@ static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val
 			JsonValue obj(std::move(cbCtx.stack.back()));
 			cbCtx.stack.pop_back();
 			
+			/*
+			if (type == Object_end) {
+				auto& o = obj.u.object;
+				std::sort(o.begin(), o.end(), pred());
+			}
+			*/
+			
 			if (cbCtx.stack.begin() != cbCtx.stack.end()) {
 				return add_scalar_value(cbCtx, std::move(obj));
 			}
@@ -676,29 +693,19 @@ static std::string double_to_string(double dbl) {
 
 
 JsonObjectField& JsonObjectField::operator=(JsonObjectField&& other) noexcept {
-	if (type == other.type) {
-		if (type == String) {
-			name.s = other.name.s;
-		}
-		else {
-			// String_view is not owning the pointer, so we convert it to String
-			auto& v = other.name.v;
-			_initString(JsonString(v.str, v.str + v.len));
-		}
-	}
-	else {
-		if (type == String) {
-			// String_view is not owning the pointer, so we convert it to String
-			auto& v = other.name.v;
-			name.s.assign(v.str, v.len);
-		}
-		else {
-			_initString(std::move(other.name.s));
-		}
+	if (type == String) {
+		name.s.~JsonString();
 	}
 	
-	type = String;
-	value = other.value;
+	if (other.type == String) {
+		_initString(std::move(other.name.s));
+	}
+	else {
+		name.v = other.name.v;
+	}
+
+	type = other.type;
+	value = std::move(other.value);
 
 	return *this;
 }
@@ -731,5 +738,23 @@ JsonObjectField::JsonObjectField(JsonObjectField&& other) noexcept
 	}
 }
 
+
+void optimize_for_search(JsonValue& root) noexcept {
+	if (root.type == JsonValue::Object) {
+		auto& obj = root.u.object;
+		
+		std::sort(obj.begin(), obj.end(), pred());
+		
+		for (auto& v : obj) {
+			optimize_for_search(v.value);
+		}
+	}
+	else if (root.type == JsonValue::Array) {
+		for (auto& v : root.u.array) {
+			optimize_for_search(v);
+		}
+	}
+	else { }
+}
 
 } // namespace asu

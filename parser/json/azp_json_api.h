@@ -97,6 +97,11 @@ void json_writer(std::string& stm, const JsonValue& val);
 //
 std::pair<JsonValue, std::string> json_reader(const std::string& stm);
 
+//
+// Sorts the JSON objects' members by key for improved search times.
+//
+void optimize_for_search(JsonValue& root) noexcept;
+
 
 
 struct JsonObjectField {
@@ -205,7 +210,7 @@ inline JsonValue::JsonValue(const string_view_t& str) noexcept
 
 inline JsonValue::JsonValue(bool val) noexcept : type(val ? Bool_true : Bool_false) { }
 
-
+//--------------------------
 
 inline void JsonObjectField::_initString(JsonString&& str) noexcept {
 	new (&name.s) JsonString(std::move(str));

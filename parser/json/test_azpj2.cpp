@@ -13,7 +13,9 @@ using namespace azp;
 
 std::pair<JsonValue, std::string> parseJson(const std::string& doc) {
 	std::pair<JsonValue, std::string> root;
-	try { root = json_reader(doc); }
+	try { root = json_reader(doc);
+		//optimize_for_search(root.first);
+	}
 	catch (std::exception& e) {
 		std::cout << "parse failure  " << e.what() << '\n';
 	}
@@ -60,7 +62,9 @@ int main(int, char* argv[]) {
 	auto str = loadFile(argv[1]);
 	
 	benchmark("Json API load",  [&str](){parseJson(str);});
-	auto root = parseJson(str);
+	auto root = parseJson(str); { auto b = root; root = std::move(b); }
+	// if (str != writeJson(root.first)) printf("problem\n");
+	// else printf("ok\n");
 	benchmark("Json API write", [&root,&str](){/*if (str != */writeJson(root.first)/*) __debugbreak()*/;});
 	
 	printf("\n");
