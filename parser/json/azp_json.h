@@ -12,7 +12,7 @@ class parser_t;
 //
 // Parses a string of chars according to the ECMA-404 'The JSON Data Interchange Standard'
 //
-// Preconditions: the string is UTF-8 encoded. The parser's context 'p' is default initialized (do not reuse)
+// Preconditions: the string is UTF-8 encoded. The parser's context 'p' is freshly initialized (do not reuse)
 //
 // Returns true if the string is conform, the maximum recursion depth wasn't reached and
 // the parser's callback didn't return 'false' in any of the invocations.

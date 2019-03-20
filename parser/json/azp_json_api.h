@@ -95,6 +95,8 @@ void json_writer(std::string& stm, const JsonValue& val);
 // Preconditions:
 // - @see azp::parseJson
 //
+// Throws std::exception in case of error.
+//
 std::pair<JsonValue, std::string> json_reader(const std::string& stm);
 
 //
@@ -144,8 +146,10 @@ struct JsonObjectField {
 	const char* nameStr() const noexcept;
 };
 
+
+
 //
-// Implementation
+// Inline implementation
 //
 
 inline JsonValue::JsonValue() noexcept : type(Empty) { }
