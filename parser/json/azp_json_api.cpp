@@ -2,6 +2,7 @@
 #include <float.h>
 #include <exception>
 #include <stdio.h>
+#include <string.h>
 #include "azp_json.h"
 #include "azp_json_api.h"
 
@@ -17,9 +18,30 @@ namespace azp {
 
 struct pred {
 	bool operator()(const JsonObjectField& left, const JsonObjectField& right) {
-		int cmp = strncmp(left.nameStr(), right.nameStr(), std::min(left.nameSize(), right.nameSize()));
+		const char * lptr, * rptr;
+		size_t lsize, rsize;
+		
+		if (left.type == JsonObjectField::String) {
+			lptr = left.name.s.c_str();
+			lsize = left.name.s.size();
+		}
+		else {
+			lptr = left.name.v.str;
+			lsize = left.name.v.len;
+		}
+		
+		if (right.type == JsonObjectField::String) {
+			rptr = right.name.s.c_str();
+			rsize = right.name.s.size();
+		}
+		else {
+			rptr = right.name.v.str;
+			rsize = right.name.v.len;
+		}
+		
+		int cmp = strncmp(lptr, rptr, std::min(lsize, rsize));
 		if (cmp < 0) return true;
-		return (cmp == 0) ? left.nameSize() < right.nameSize() : false;
+		return (cmp == 0) ? lsize < rsize : false;
 	}
 };
 
@@ -606,7 +628,7 @@ static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val
 				auto& o = obj.u.object;
 				std::sort(o.begin(), o.end(), pred());
 			}
-			*/
+			//*/
 			
 			if (cbCtx.stack.begin() != cbCtx.stack.end()) {
 				return add_scalar_value(cbCtx, std::move(obj));
@@ -694,14 +716,21 @@ static std::string double_to_string(double dbl) {
 
 JsonObjectField& JsonObjectField::operator=(JsonObjectField&& other) noexcept {
 	if (type == String) {
-		name.s.~JsonString();
-	}
-	
-	if (other.type == String) {
-		_initString(std::move(other.name.s));
+		if (other.type == String) {
+			name.s = std::move(other.name.s);
+		}
+		else {
+			name.s.~JsonString();
+			name.v = other.name.v;
+		}
 	}
 	else {
-		name.v = other.name.v;
+		if (other.type == String) {
+			_initString(std::move(other.name.s));
+		}
+		else {
+			name.v = other.name.v;
+		}
 	}
 
 	type = other.type;
