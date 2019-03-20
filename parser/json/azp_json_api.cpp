@@ -15,8 +15,8 @@
 namespace azp {
 
 
-
-struct pred {
+// Compares the names of two JsonObjectField objects
+struct less {
 	bool operator()(const JsonObjectField& left, const JsonObjectField& right) {
 		const char * lptr, * rptr;
 		size_t lsize, rsize;
@@ -630,7 +630,7 @@ static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val
 			/*
 			if (type == Object_end) {
 				auto& o = obj.u.object;
-				std::sort(o.begin(), o.end(), pred());
+				std::sort(o.begin(), o.end(), less());
 			}
 			//*/
 			
@@ -769,7 +769,7 @@ void optimize_for_search(JsonValue& root) noexcept {
 	if (root.type == JsonValue::Object) {
 		auto& obj = root.u.object;
 		
-		std::sort(obj.begin(), obj.end(), pred());
+		std::sort(obj.begin(), obj.end(), less());
 		
 		for (auto& v : obj) {
 			optimize_for_search(v.value);
