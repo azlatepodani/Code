@@ -752,19 +752,6 @@ JsonObjectField::JsonObjectField(const JsonObjectField& other)
 }
 
 
-JsonObjectField::JsonObjectField(JsonObjectField&& other) noexcept
-	: type(other.type)
-	, value(std::move(other.value))
-{
-	if (type == String) {
-		_initString(std::move(other.name.s));
-	}
-	else {
-		name.v = other.name.v;
-	}
-}
-
-
 void optimize_for_search(JsonValue& root) noexcept {
 	if (root.type == JsonValue::Object) {
 		auto& obj = root.u.object;

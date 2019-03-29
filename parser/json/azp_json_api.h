@@ -159,9 +159,38 @@ inline JsonValue::JsonValue(const JsonValue& other) : type(Empty) {
 }
 
 inline JsonValue::JsonValue(JsonValue&& other) noexcept
-	: type(Empty)
+	: type(other.type)
 {
-	operator=(std::move(other));
+	switch (other.type) {
+		case Object:
+			new (&u.object) JsonObject(std::move(other.u.object));
+			break;
+
+		case Array:
+			new (&u.array) JsonArray(std::move(other.u.array));
+			break;
+			
+		case String:
+			_initString(std::move(other.u.string));
+			break;
+			
+		case String_view:
+			u.view = other.u.view;
+			break;
+			
+		case Number:
+			u.number = other.u.number;
+			break;
+			
+		case Float_num:
+			u.float_num = other.u.float_num;
+			break;
+			
+		case Bool_true:
+		case Bool_false:
+		default: // case Empty:
+		;	// nothing to do
+	}
 }
 
 inline JsonValue::JsonValue(std::nullptr_t) noexcept : type(Empty) { }
@@ -224,6 +253,18 @@ inline JsonObjectField::JsonObjectField() noexcept
 	: type(String)
 {
 	_initString(JsonString());
+}
+
+inline JsonObjectField::JsonObjectField(JsonObjectField&& other) noexcept
+	: type(other.type)
+	, value(std::move(other.value))
+{
+	if (type == String) {
+		_initString(std::move(other.name.s));
+	}
+	else {
+		name.v = other.name.v;
+	}
 }
 
 inline JsonObjectField::JsonObjectField(JsonString name_, JsonValue value_) noexcept

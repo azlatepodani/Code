@@ -332,7 +332,6 @@ _escape_seq:
 // assumes last == first + max_len + 1 (see parseNumber)
 // 'max_len' is the longest string for floating numbers accepted
 static bool parseNumberNoCopy(parser_base_t& p, char * first, char * last) {
-	char * cur = first;
 	char * savedFirst = first;
 		
 	auto savedCh = *(last-1);
@@ -340,7 +339,6 @@ static bool parseNumberNoCopy(parser_base_t& p, char * first, char * last) {
 	
 	// optional '-' sign
 	if (*first == '-') {
-		cur++;
 		first++;
 	}
 
@@ -351,14 +349,12 @@ static bool parseNumberNoCopy(parser_base_t& p, char * first, char * last) {
 	bool haveExpDigit = false;
 
 	if (*first == '0') {	// no leading zeros allowed
-		cur++;
 		first++;	// valid input: 0, 0.x, 0ex
 		haveDigit = true;
 	}
 	else {
 		// digits
 		while (isDigit(*first)) {
-			cur++;
 			first++;
 			haveDigit = true;
 		}
@@ -367,12 +363,10 @@ static bool parseNumberNoCopy(parser_base_t& p, char * first, char * last) {
 	// optional '.<digits>'
 	if (*first == '.') {
 		haveDot = true;
-		cur++;
 		first++;
 		
 		// optional digits after the dot
 		while (isDigit(*first)) {
-			cur++;
 			first++;
 			haveDotDigit = true;
 		}
@@ -382,18 +376,15 @@ static bool parseNumberNoCopy(parser_base_t& p, char * first, char * last) {
 	if ((*first|0x20) == 'e') {
 		haveExp = true;
 		
-		cur++;
 		first++;
 
 		// optional +/- signs
 		if (*first == '-' || *first == '+') {
-			cur++;
 			first++;
 		}
 	
 		// digits after the exponent
 		while (isDigit(*first)) {
-			cur++;
 			first++;
 			haveExpDigit = true;
 		}
@@ -408,8 +399,8 @@ static bool parseNumberNoCopy(parser_base_t& p, char * first, char * last) {
 		return parse_error(p, Invalid_number, savedFirst);
 	}
 
-	savedCh = *cur;
-	*cur = 0;
+	savedCh = *first;
+	*first = 0;
 	
 	bool result;
 	if (haveDot | haveExp) {		
@@ -419,7 +410,7 @@ static bool parseNumberNoCopy(parser_base_t& p, char * first, char * last) {
 			return parse_error(p, Invalid_number, savedFirst);
 		}
 		
-		result = wrap_user_callback(Number_float, val, first);
+		result = wrap_user_callback(Number_float, val, savedFirst);
 	}
 	else {
 		value_t val;
@@ -428,10 +419,10 @@ static bool parseNumberNoCopy(parser_base_t& p, char * first, char * last) {
 			return parse_error(p, Invalid_number, savedFirst);
 		}
 		
-		result = wrap_user_callback(Number_int, val, first);
+		result = wrap_user_callback(Number_int, val, savedFirst);
 	}
 	
-	*cur = savedCh;
+	*first = savedCh;
 	
 	p.parsed = first;
 	return result;
