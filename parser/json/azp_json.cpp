@@ -94,9 +94,13 @@ static bool parseJson(parser_base_t& p, char * first, char * last) {
 		return parse_error(p, No_value, first);
 	}
 	
-	if (*first == '{') return parseJsonObject(p, first+1, last);
-	if (*first == '[') return parseJsonArray(p, first+1, last);
-	return parseJsonScalarV(p, first, last);
+	// The common case first
+	auto chr = *first;
+	if ((chr != '{') & (chr != '[')) return parseJsonScalarV(p, first, last);
+	
+	if (chr == '{') return parseJsonObject(p, first+1, last);
+
+	return parseJsonArray(p, first+1, last);
 }
 
 
@@ -110,10 +114,12 @@ static bool parse_error(parser_base_t& p, ParserErrors err, const char * curPtr)
 
 static char * skip_wspace(char * first, char * last) {
 	auto n = last - first;
-    if (n && *first > ' ') return first;	// likely
+	auto chr = *first;
+    if (n && chr > ' ') return first;	// likely
 	for (; n; --n) {
-		if ((*first == ' ') | (*first == '\n') | (*first == '\r') | (*first == '\t')) ++first;
+		if ((chr == ' ') | (chr == '\n') | (chr == '\r') | (chr == '\t')) ++first;
 		else return first;
+		chr = *first;
 	}
 	return first;
 }
@@ -136,14 +142,15 @@ static bool unescapeUnicodeChar(parser_base_t& p, char * first, char * last, cha
 	uint32_t u32 = 0;
 	
 	//
-#define load_hex() 								\
-	if (isDigit(*first)) {						\
-		u32 |= *first - '0';					\
+#define load_hex() { 							\
+	auto __chr = *first;						\
+	if (isDigit(__chr)) {						\
+		u32 |= __chr - '0';					    \
 	}											\
-	else if (isHexAlpha(*first)) {	            \
-		u32 |= (*first|0x20) - 'a' + 10;		\
+	else if (isHexAlpha(__chr)) {	            \
+		u32 |= (__chr|0x20) - 'a' + 10;		    \
 	}											\
-	else return parse_error(p, Invalid_escape, first)
+	else return parse_error(p, Invalid_escape, first);}
 	//
 	
 	load_hex();
@@ -610,17 +617,19 @@ static bool parseNull(parser_base_t& p, char * first, char * last) {
 
 
 static bool parseJsonScalarV(parser_base_t& p, char * first, char * last) {
-	if (*first == '"') {
+	auto chr = *first;
+	
+	if (chr == '"') {
 		return parseString(p, first+1, last, String_val);
 	}
 
-	if (isDigit(*first) | (*first == '-')) {
+	if (isDigit(chr) | (chr == '-')) {
 		return parseNumber(p, first, last);
 	}
 	
-	if (*first == 't') return parseTrue(p, first+1, last);
-	if (*first == 'f') return parseFalse(p, first+1, last);
-	if (*first == 'n') return parseNull(p, first+1, last);
+	if (chr == 't') return parseTrue(p, first+1, last);
+	if (chr == 'f') return parseFalse(p, first+1, last);
+	if (chr == 'n') return parseNull(p, first+1, last);
 	
 	return parse_error(p, No_value, first);
 }

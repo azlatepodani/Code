@@ -51,7 +51,7 @@ int wmain(int, PWSTR argv[])
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 	if (GetThreadPriority(GetCurrentThread()) != THREAD_PRIORITY_HIGHEST) printf("Priority set failed\n");
 	 
-	if (!SetThreadAffinityMask(GetCurrentThread(), 1)) printf("Affinity set failed\n");
+	if (!SetThreadAffinityMask(GetCurrentThread(), 2)) printf("Affinity set failed\n");
 
 #else
 int main(int, char* argv[]) {
