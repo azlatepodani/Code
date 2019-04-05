@@ -50,7 +50,7 @@ bool parseXml(parser_t& p, const char * first, const char * last)
 parser_t::parser_t() {
 	parsed = nullptr;
 	context = nullptr;
-	callback = [](void*, ParserTypes, const value_t&) { return true; };
+	callback = [](void*, ParserTypes, const string_view_t&) { return true; };
 	recursion = 0;
 	max_recursion = 16;
 	error = No_error;
@@ -118,7 +118,13 @@ inline bool isHexAlpha(char c) {
 
 static bool parseName(parser_base_t& p, ParserTypes type, char * first, char * last);
 static bool parseTagAttribute(parser_base_t& p, char * first, char * last);
+static bool parseTagBodyAndClosingTag(parser_base_t& p, char * first, char * last);
 
+
+#define wrap_user_callback(RT, VAL, ERR_HINT) 					\
+					(p.callback(p.context, (RT), (VAL)) ? true	\
+					: parse_error(p, User_requested, (ERR_HINT)))
+					
 
 // assumes that '<' was already parsed
 static bool parseXmlTag(parser_base_t& p, char * first, char * last) {
@@ -128,6 +134,8 @@ static bool parseXmlTag(parser_base_t& p, char * first, char * last) {
 
 	if (!parseName(p, Tag_open, first, last)) return false;
 	first = p.parsed;
+	
+	bool tagClosed = false;
 	
 	while (true) {
 		first = skip_wspace(first, last);
@@ -151,7 +159,7 @@ static bool parseXmlTag(parser_base_t& p, char * first, char * last) {
 		if (!parseTagBodyAndClosingTag(p, first, last)) return false;
 	}
 	
-	value_t val;
+	string_view_t val;
 	return wrap_user_callback(Tag_close, val, p.parsed);
 }
 
@@ -185,13 +193,36 @@ Name_done:
 }
 
 
+static bool parseReference(parser_base_t& p, char * first, char * last) {
+	return true;
+}
+
+
 static bool parseAttrValue(parser_base_t& p, char * first, char * last) {
 	auto ch = *first++;
-	if ((ch != '"') & (ch != '\'')) parse_error(p, Unexpected_char, first-1);
+	if ((ch != '"') & (ch != '\'')) return parse_error(p, Unexpected_char, first-1);
+	
+	auto savedFirst = first;
 
 	while (true) {
-		auto 
+		auto c = *first++;
+		if (c == ch) break;
+		
+		if (c == '&') {
+			if (!parseReference(p, first, last)) return false;
+			first = p.parsed;
+		}
+		else if (c == '<') return parse_error(p, Unexpected_char, first-1);
+		
+		if (first == last) return parse_error(p, Expected_quote, first);
 	}
+	
+	p.parsed = first;
+	
+	string_view_t val;
+	val.str = savedFirst;
+	val.len = first - savedFirst - 1;	// first was incremented after locating the closing quote
+	return wrap_user_callback(Attribute_value, val, p.parsed);
 }
 
 
@@ -211,4 +242,22 @@ static bool parseTagAttribute(parser_base_t& p, char * first, char * last) {
 }
 
 
+static bool parseTagBodyAndClosingTag(parser_base_t& p, char * first, char * last) {
+	return true;
+}
+
+
 } // namespace azp
+
+
+int main() {
+	char * vec[] = {"<tag>", "<tag />",
+					"<tag a='1'/>",
+					"<tag a='1' b=\"2\"/>",
+					};
+	
+	for (auto s : vec) {
+		azp::parser_t p;
+		parseXml(p, s, s+strlen(s));
+	}
+}

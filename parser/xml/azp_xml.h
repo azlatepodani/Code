@@ -1,6 +1,6 @@
 #pragma once
 
-//#include <cstdint>
+#include <cstdint>
 
 
 namespace azp {
@@ -31,6 +31,10 @@ bool parseXml(parser_t& p, const char * first, const char * last);
 
 
 enum ParserTypes {
+	Tag_open,
+	Tag_close,
+	Attribute_name,
+	Attribute_value,
 	// Object_begin,
 	// Object_end,
 	// Array_begin,
@@ -50,12 +54,16 @@ enum ParserErrors {
 	No_error,
 	Unexpected_char,		// the current character cannot be parsed
 	Max_recursion,			// the configured maximum nesting level was exceeded
-	// No_value,				// the parser couldn't parse a JSON value at the error position
+	No_value,				// the parser couldn't parse a JSON value at the error position
 	// Invalid_escape,			// a '\' character wasn't followed by a valid sequence
-	// User_requested,			// the callback function returned 'false'
+	User_requested,			// the callback function returned 'false'
 	// No_string_end,			// the closing '"' were not present in the buffer
 	// Invalid_number,			// a numeric value couldn't be parsed
-	// Runtime_error,			// an external API returned an error
+	Runtime_error,			// an external API returned an error
+	Expected_closing_brace,
+	Expected_name,
+	Expected_quote,
+	Expected_attr_value,
 	// Invalid_token,			// the parser encountered 't', 'f', 'n', but couldn't parse 'true', 'false' or 'null' 
 	// Unbalanced_collection,	// the '[', ']', '{', '}' weren't paired correctly
 	// Expected_key,			// inside an object, at the error position, a key was expected
