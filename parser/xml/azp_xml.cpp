@@ -57,6 +57,7 @@ parser_t::parser_t() {
 	err_position = 0;
 	_first = nullptr;
 	parsed_offset = 0;
+	tag = string_view_t{0,0};
 }
 
 
@@ -116,7 +117,8 @@ inline bool isHexAlpha(char c) {
 }
 
 
-static bool parseName(parser_base_t& p, ParserTypes type, char * first, char * last);
+static bool parseName(parser_base_t& p, char * first, char * last);
+static bool parseAttrName(parser_base_t& p, char * first, char * last);
 static bool parseTagAttribute(parser_base_t& p, char * first, char * last);
 static bool parseTagBodyAndClosingTag(parser_base_t& p, char * first, char * last);
 
@@ -132,7 +134,7 @@ static bool parseXmlTag(parser_base_t& p, char * first, char * last) {
 	
 	dec_on_exit de(p.recursion);
 
-	if (!parseName(p, Tag_open, first, last)) return false;
+	if (!parseName(p, first, last)) return false;
 	first = p.parsed;
 	
 	bool tagClosed = false;
@@ -191,7 +193,19 @@ static char * findNameEnd(char * first, char * last) {
 }
 
 
-static bool parseName(parser_base_t& p, ParserTypes type, char * first, char * last) {
+static bool parseName(parser_base_t& p, char * first, char * last) {
+	auto savedFirst = first;
+	first = findNameEnd(first, last);
+	if (savedFirst == first) return parse_error(p, Expected_name, first);
+	
+	p.parsed = first;
+	
+	p.tag = string_view_t{savedFirst, size_t(first-savedFirst)};
+	return wrap_user_callback(Tag_open, p.tag, p.parsed);
+}
+
+
+static bool parseAttrName(parser_base_t& p, char * first, char * last) {
 	auto savedFirst = first;
 	first = findNameEnd(first, last);
 	if (savedFirst == first) return parse_error(p, Expected_name, first);
@@ -199,7 +213,7 @@ static bool parseName(parser_base_t& p, ParserTypes type, char * first, char * l
 	p.parsed = first;
 	
 	string_view_t val{savedFirst, size_t(first-savedFirst)};
-	return wrap_user_callback(type, val, p.parsed);
+	return wrap_user_callback(Attribute_name, val, p.parsed);
 }
 
 
@@ -235,7 +249,7 @@ static bool parseAttrValue(parser_base_t& p, char * first, char * last) {
 
 
 static bool parseTagAttribute(parser_base_t& p, char * first, char * last) {
-	if (!parseName(p, Attribute_name, first, last)) return false;
+	if (!parseAttrName(p, first, last)) return false;
 	first = p.parsed;
 
 	first = skip_wspace(first, last);
@@ -378,7 +392,7 @@ static bool expandReference(parser_base_t& p, char * first, char * last, char * 
 		
 		// just skip the text for now 
 		first = findNameEnd(first-1, last);
-		if (first == last || *first != ';') return false;
+		if (first == last || *first != ';') return parse_error(p, Expected_semicolon, first);
 		++first;
 	}
 	else {
@@ -407,9 +421,7 @@ static bool parseCharData(parser_base_t& p, char * first, char * last) {
 	
 	while (ch == '&') {
 		auto savedEnd = textEnd;
-		if (!expandReference(p, first+1, last, savedEnd, textEnd)) {
-			return parse_error(p, Invalid_reference, first);
-		}
+		if (!expandReference(p, first+1, last, savedEnd, textEnd)) return false;
 		
 		first = p.parsed;
 		
@@ -436,7 +448,8 @@ static bool parseClosingTag(parser_base_t& p, char * first, char * last) {
 	auto nameEnd = findNameEnd(first, last);
 	if (first == nameEnd) return parse_error(p, Unexpected_char, first);
 	
-	// ? need to check the name
+	if (nameEnd - first != p.tag.len || memcmp(first, p.tag.str, p.tag.len) != 0)
+		return parse_error(p, Unbalanced_collection, first);
 	
 	first = skip_wspace(nameEnd, last);
 	if (first == last || *first != '>') return parse_error(p, Expected_closing_brace, first);
@@ -478,7 +491,9 @@ static bool parseTagBodyAndClosingTag(parser_base_t& p, char * first, char * las
 		if (ch == '/') return parseClosingTag(p, first+1, last);
 	
 		if ((ch != '!') & (ch != '?')) {
+			auto bak = p.tag;
 			if (!parseXmlTag(p, first, last)) return false;
+			p.tag = bak;
 		}
 		else if (ch == '!') {
 			++first;
@@ -515,7 +530,7 @@ static bool parseTagBodyAndClosingTag(parser_base_t& p, char * first, char * las
 										"Text",
 										"N/a","N/a","N/a",
 									};
-		if (val.len) printf("%s   %.*s\n", tab[type], val.len, val.str);
+		if (val.len) printf("%s   %.*s\n", tab[type], (int)val.len, val.str);
 		else printf("%s\n", tab[type]);
 		return true;
 	}
