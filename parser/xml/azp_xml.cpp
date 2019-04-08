@@ -141,13 +141,13 @@ static bool parseXmlTag(parser_base_t& p, char * first, char * last) {
 		first = skip_wspace(first, last);
 		if (first == last) return parse_error(p, Expected_closing_brace, first);
 		
-		if (*first == '>') { p.parsed = first; break; }
+		if (*first == '>') { ++first; break; }
 
 		if (*first == '/') { 
 			tagClosed = true;
 			
 			++first;
-			if (first != last && *first == '>') { p.parsed = first; break; }
+			if (first != last && *first == '>') { ++first; break; }
 			return parse_error(p, Expected_closing_brace, first);
 		}
 		
@@ -158,16 +158,18 @@ static bool parseXmlTag(parser_base_t& p, char * first, char * last) {
 	if (!tagClosed) {
 		if (!parseTagBodyAndClosingTag(p, first, last)) return false;
 	}
+	else {
+		p.parsed = first;
+	}
 	
-	string_view_t val;
+	string_view_t val{0,0};
 	return wrap_user_callback(Tag_close, val, p.parsed);
 }
 
 
-static bool parseName(parser_base_t& p, ParserTypes type, char * first, char * last) {
-	auto savedFirst = first;
+static char * findNameEnd(char * first, char * last) {
 	while (first != last) {
-		switch (*first) {
+		switch (*first++) {
 			case '/':
 			case '>':
 			case ' ':
@@ -175,20 +177,28 @@ static bool parseName(parser_base_t& p, ParserTypes type, char * first, char * l
 			case '\n':
 			case '\r':
 			case '=':
-				goto Name_done;
+			case ';':
+			case '"':
+			case '\'':
+			case '!':
+				return first-1;
 				
-			default: ++first;
+			default:;
 		}
 	}
-	
-Name_done:
+
+	return first;
+}
+
+
+static bool parseName(parser_base_t& p, ParserTypes type, char * first, char * last) {
+	auto savedFirst = first;
+	first = findNameEnd(first, last);
 	if (savedFirst == first) return parse_error(p, Expected_name, first);
 	
 	p.parsed = first;
 	
-	string_view_t val;
-	val.str = savedFirst;
-	val.len = first - savedFirst;
+	string_view_t val{savedFirst, size_t(first-savedFirst)};
 	return wrap_user_callback(type, val, p.parsed);
 }
 
@@ -219,9 +229,7 @@ static bool parseAttrValue(parser_base_t& p, char * first, char * last) {
 	
 	p.parsed = first;
 	
-	string_view_t val;
-	val.str = savedFirst;
-	val.len = first - savedFirst - 1;	// first was incremented after locating the closing quote
+	string_view_t val{savedFirst, size_t(first - savedFirst - 1)};	// first was incremented after locating the closing quote
 	return wrap_user_callback(Attribute_value, val, p.parsed);
 }
 
@@ -242,22 +250,286 @@ static bool parseTagAttribute(parser_base_t& p, char * first, char * last) {
 }
 
 
-static bool parseTagBodyAndClosingTag(parser_base_t& p, char * first, char * last) {
+static bool expandCharReference(parser_base_t& p, char * first, char * last, char * cur, char *& textEnd) {
+	auto n = last-first;
+	if (!n) return false;
+	
+	char * savedFirst;
+	uint32_t num = 0;
+	
+	// the last valid XML char is 0xEFFFF == 983039
+	if (*first == 'x') {
+		savedFirst = ++first;
+		if (n > 5) n = 5;
+		
+		while (n--) {
+			auto ch = *first++;
+			if (isDigit(ch)) {
+				num <<= 4;
+				num |= ch - '0';
+			}
+			else if (isHexAlpha(ch)) {
+				num <<= 4;
+				num |= (ch|0x20) - 'a' + 10;
+			}
+			else {
+				--first;	// ch wasn't parsed yet
+				break;
+			}
+		}
+			}
+	else {
+		savedFirst = first;
+		if (n > 6) n = 6;
+		
+		while (n--) {
+			auto ch = *first++;
+			if (isDigit(ch)) {
+				num = (num << 3) + (num << 1);
+				num += ch - '0';
+			}
+			else {
+				--first;	// ch wasn't parsed yet
+				break;
+			}
+		}
+	}
+	
+	if (first == last || *first != ';') return parse_error(p, Expected_semicolon, first);
+	++first;
+	// minimum validity checks
+	if (((num >= 0xD800) & (num < 0xE000)) | (num > 0xEFFFF) | (num == 0))
+		return parse_error(p, Invalid_escape, savedFirst);
+
+	if (num < 128) {
+		*cur++ = (char)num;
+	}
+	else if (num < 0x800) {
+		*cur++ = char((num >> 6) | 0xC0);
+		*cur++ = char((num & 0x3F) | 0x80);
+	}
+	else if (num < 0x10000) {
+		*cur++ = char((num >> 12) | 0xE0);
+		*cur++ = char(((num >> 6) & 0x3F) | 0x80);
+		*cur++ = char((num & 0x3F) | 0x80);
+	}
+	else {
+		*cur++ = char((num >> 18) | 0xF0);
+		*cur++ = char(((num >> 12) & 0x3F) | 0x80);
+		*cur++ = char(((num >> 6) & 0x3F) | 0x80);
+		*cur++ = char((num & 0x3F) | 0x80);
+	}
+	
+	textEnd = cur;
+	p.parsed = first;
 	return true;
+}
+
+
+static bool expandReference(parser_base_t& p, char * first, char * last, char * cur, char *& textEnd) {
+	auto ch = *first;
+	auto n = last - first++;
+	
+	if (ch != '#') {
+		switch (ch) {
+			case 'a': 
+				if (n >= 3 && memcmp(first, "mp;", 3) == 0) {
+					*cur++ = '&';
+					first += 3;
+					goto Out;
+				}
+				
+				if (n >= 4 && memcmp(first, "pos;", 4) == 0) {
+					*cur++ = '\'';
+					first += 4;
+					goto Out;
+				}
+				break;
+				
+			case 'g':
+				if (n >= 2 && memcmp(first, "t;", 2) == 0) {
+					*cur++ = '>';
+					first += 2;
+					goto Out;
+				}
+				
+				break;
+				
+			case 'l':
+				if (n >= 2 && memcmp(first, "t;", 2) == 0) {
+					*cur++ = '<';
+					first += 2;
+					goto Out;
+				}
+				
+				break;
+				
+			case 'q':
+				if (n >= 4 && memcmp(first, "uot;", 4) == 0) {
+					*cur++ = '"';
+					first += 4;
+					goto Out;
+				}
+				
+				break;
+				
+			default:;
+		}
+		
+		// just skip the text for now 
+		first = findNameEnd(first-1, last);
+		if (first == last || *first != ';') return false;
+		++first;
+	}
+	else {
+		return expandCharReference(p, first, last, cur, textEnd);
+	}
+	
+Out:
+	textEnd = cur;
+	p.parsed =  first;
+	return true;
+}
+
+
+static bool parseCharData(parser_base_t& p, char * first, char * last) {
+	auto n = last - first;
+	
+	auto savedFirst = first;
+	auto ch = *first;
+	
+	while (n && ((ch != '<') & (ch != '&'))) {
+		ch = *(++first);
+		--n;
+	}
+	
+	auto textEnd = first;
+	
+	while (ch == '&') {
+		auto savedEnd = textEnd;
+		if (!expandReference(p, first+1, last, savedEnd, textEnd)) {
+			return parse_error(p, Invalid_reference, first);
+		}
+		
+		first = p.parsed;
+		
+		n = last - first;
+		if (!n) break;
+		
+		ch = *first;
+		while (n && ((ch != '<') & (ch != '&'))) {
+			*textEnd++ = ch;
+			ch = *(++first);
+			--n;
+		}
+	}
+	
+	p.parsed = first;
+	string_view_t val{savedFirst, size_t(textEnd-savedFirst)};
+	if (val.len && !wrap_user_callback(Text, val, first)) return false;
+	
+	return true;
+}
+
+
+static bool parseClosingTag(parser_base_t& p, char * first, char * last) {
+	auto nameEnd = findNameEnd(first, last);
+	if (first == nameEnd) return parse_error(p, Unexpected_char, first);
+	
+	// ? need to check the name
+	
+	first = skip_wspace(nameEnd, last);
+	if (first == last || *first != '>') return parse_error(p, Expected_closing_brace, first);
+	
+	p.parsed = first+1;
+	
+	return true;
+}
+
+
+static bool parseCDataSect(parser_base_t& p, char * first, char * last) {
+	return false;
+}
+
+
+static bool parseComment(parser_base_t& p, char * first, char * last) {
+	return false;
+}
+
+
+static bool parseProcessingInstruction(parser_base_t& p, char * first, char * last) {
+	return false;
+}
+
+
+static bool parseTagBodyAndClosingTag(parser_base_t& p, char * first, char * last)
+{
+	while (true) {
+		if (!parseCharData(p, first, last)) return false;
+		
+		first = p.parsed;
+		
+		if (last - first < 4) return parse_error(p, Unbalanced_collection, first);	// a valid closing tag is at least '</a>'
+		
+		++first;	// skip '<'
+		
+		auto ch = *first;
+		
+		if (ch == '/') return parseClosingTag(p, first+1, last);
+	
+		if ((ch != '!') & (ch != '?')) {
+			if (!parseXmlTag(p, first, last)) return false;
+		}
+		else if (ch == '!') {
+			++first;
+			
+			if (*first == '[') {
+				if (!parseCDataSect(p, first+1, last)) return false;
+			}
+			else if (*first == '-') {
+				if (!parseComment(p, first+1, last)) return false;
+			}
+			else {
+				return parse_error(p, Unexpected_char, first);
+			}
+		}
+		else if (ch == '?') {
+			if (!parseProcessingInstruction(p, first+1, last)) return false;
+		}
+		else {
+			return parse_error(p, Unexpected_char, first);
+		}
+		
+		first = p.parsed;
+	}
 }
 
 
 } // namespace azp
 
+	bool cb (void *, azp::ParserTypes type, const azp::string_view_t& val) {
+		static const char * tab[] = { "Tag_open",
+										"Tag_close",
+										"Attribute_name",
+										"Attribute_value",
+										"Text",
+										"N/a","N/a","N/a",
+									};
+		if (val.len) printf("%s   %.*s\n", tab[type], val.len, val.str);
+		else printf("%s\n", tab[type]);
+		return true;
+	}
 
 int main() {
-	char * vec[] = {"<tag>", "<tag />",
-					"<tag a='1'/>",
-					"<tag a='1' b=\"2\"/>",
+	char vec[][100] = {//"<tag></tag>", "<tag> a </tag>",
+					"<tag><tag></tag>a<tag>&apos;</tag></tag>",
+					// "<tag a='1'/>",
+					// "<tag a='1' b=\"2\"/>",
 					};
-	
+						
 	for (auto s : vec) {
 		azp::parser_t p;
+		p.set_callback(cb, 0);
 		parseXml(p, s, s+strlen(s));
 	}
 }

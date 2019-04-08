@@ -35,6 +35,7 @@ enum ParserTypes {
 	Tag_close,
 	Attribute_name,
 	Attribute_value,
+	Text,
 	// Object_begin,
 	// Object_end,
 	// Array_begin,
@@ -55,7 +56,7 @@ enum ParserErrors {
 	Unexpected_char,		// the current character cannot be parsed
 	Max_recursion,			// the configured maximum nesting level was exceeded
 	No_value,				// the parser couldn't parse a JSON value at the error position
-	// Invalid_escape,			// a '\' character wasn't followed by a valid sequence
+	Invalid_escape,			// a '\' character wasn't followed by a valid sequence
 	User_requested,			// the callback function returned 'false'
 	// No_string_end,			// the closing '"' were not present in the buffer
 	// Invalid_number,			// a numeric value couldn't be parsed
@@ -65,10 +66,11 @@ enum ParserErrors {
 	Expected_quote,
 	Expected_attr_value,
 	// Invalid_token,			// the parser encountered 't', 'f', 'n', but couldn't parse 'true', 'false' or 'null' 
-	// Unbalanced_collection,	// the '[', ']', '{', '}' weren't paired correctly
+	Unbalanced_collection,	// the '[', ']', '{', '}' weren't paired correctly
 	// Expected_key,			// inside an object, at the error position, a key was expected
-	// Expected_colon,			// inside an object, at the error position, a ':' character was expected
+	Expected_semicolon,			// inside an object, at the error position, a ':' character was expected
 	// Invalid_char,			// a char code < 32 was encountered
+	Invalid_reference,
 	Max_errors,
 };
 
