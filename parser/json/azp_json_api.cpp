@@ -698,10 +698,10 @@ static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val
 			*cbCtx.result = JsonValue(false);
 			break;
 
-		case String_val: {
+		case String_val:
 			*cbCtx.result = JsonValue(string_view_t{value.string.p, value.string.len});
 			break;
-		}
+
 		default: return false;
 		}
 	}
