@@ -36,7 +36,10 @@ enum ParserTypes {
 	Attribute_name,
 	Attribute_value,
 	Text,
-
+	Cdata_text,
+	Pinstr_name,
+	Pinstr_text,
+	
 	Max_types,
 };
 
@@ -55,19 +58,20 @@ enum ParserErrors {
 	Expected_attr_value,
 	Unbalanced_collection,	// the closing tag's name didn't match the current node
 	Expected_semicolon,		// a reference didn't end with a ';' char
+	Expected_cdata,			// the parser expects a CDATA section
+	Expected_cdata_end,		// "]]>" missing
+	Expected_comment,
+	Expected_comment_end,	// "[^-] -->" missing
+	Expected_pi_end,		// "?>" missing
+	Invalid_pi_name,		// the PI uses the reserved "xml" name
+	Expected_version_decl,	// '<?xml' is not followed by 'version="1.x"'
+	Expected_encoding,		// 'encoding' is not followed by '="enc"'
+	Expected_sddecl,		// 'standalone' is not followed by '="yes|no"'
 	
 	Max_errors,
 };
 
 
-// union value_t {
-	// int64_t integer;
-	// double number;
-	// struct _s_t {
-		// const char* p;	// this pointer is not valid after the callback returns
-		// size_t len;
-	// } string;
-// };
 
 struct string_view_t {
 	const char* str;	// not necessarily 0-terminated
