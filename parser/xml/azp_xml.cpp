@@ -5,6 +5,12 @@
 #include <string.h>
 #include "azp_xml.h"
 #include <memory>
+#include <string>
+#include <iostream>
+#include <fstream>
+#if defined(_MSC_VER)
+#include <windows.h>
+#endif
 
 
 namespace azp {
@@ -58,6 +64,9 @@ parser_t::parser_t() {
     _first = nullptr;
     parsed_offset = 0;
     tag = string_view_t{0,0};
+    ver = string_view_t{0,0};
+    enc = string_view_t{0,0};
+    sddecl = string_view_t{0,0};
 }
 
 
@@ -135,7 +144,12 @@ static bool parseXmlVersion(parser_base_t& p, char * first, char * last)
         
         if (last - first < 6) break;  // 1.x"?>
         
+        auto savedFirst = first;
+        
         if (*(++first) != '1' || *(++first) != '.' ||!isDigit(*(++first)) || *(++first) != ch) break;
+        
+        p.ver.str = savedFirst+1;
+        p.ver.len = size_t(first - savedFirst - 1);
         
         p.parsed = first+1;
         return true;
@@ -171,6 +185,8 @@ static bool parseXmlEncoding(parser_base_t& p, char * first, char * last)
         auto n = last - ++first;
         if (n < 4) break;  // e'?>
         
+        auto savedFirst = first;
+        
         if (!isAtoZ(*first)) goto Out;
         
         ++first; --n;
@@ -182,13 +198,17 @@ static bool parseXmlEncoding(parser_base_t& p, char * first, char * last)
             
             if (c == ch) { foundEnd = true; break; }
             
-            if (!isAtoZ(c) || !isDigit(c)) goto Out;
-            if ((c != '.') & (c != '_') & (c != '-')) goto Out;
+            if (!isAtoZ(c) && !isDigit(c)) {
+                if ((c != '.') & (c != '_') & (c != '-')) goto Out;
+            }
             
             ++first;
         }
         
         if (!foundEnd) break;
+        
+        p.enc.str = savedFirst;
+        p.enc.len = size_t(first - savedFirst);
         
         p.parsed = first+1;
         return true;
@@ -217,7 +237,9 @@ static bool parseSdDecl(parser_base_t& p, char * first, char * last)
         
         if (ch != '"' && ch != '\'') break;
         
-        if (last - first < 5) break;  // no'?>
+        if (last - ++first < 5) break;  // no'?>
+        
+        auto savedFirst = first;
         
         if (*first == 'y') {
             if (*(++first) != 'e' || *(++first) != 's') break;
@@ -226,6 +248,11 @@ static bool parseSdDecl(parser_base_t& p, char * first, char * last)
             if (*(++first) != 'o') break;
         }
         else break;
+        
+        if (*(++first) != ch) break;    // closing quote
+        
+        p.sddecl.str = savedFirst;
+        p.sddecl.len = size_t(first - savedFirst);
         
         p.parsed = first+1;
         return true;
@@ -257,7 +284,11 @@ static bool parseXmlDecl(parser_base_t& p, char * first, char * last) {
     if (!parseXmlEncoding(p, first, last)) return false;
     
     first = skip_wspace(p.parsed, last);
+    if (first == last) return parse_error(p, Expected_pi_end, first);
     
+    if (!parseSdDecl(p, first, last)) return false;
+    
+    first = skip_wspace(p.parsed, last);
     if (last-first < 2) return parse_error(p, Expected_pi_end, first);
     
     if (*first != '?' || first[1] != '>') return parse_error(p, Expected_pi_end, first);
@@ -848,19 +879,68 @@ static bool parseTagBodyAndClosingTag(parser_base_t& p, char * first, char * las
     }
     
     
+ #if defined(_MSC_VER)
+	inline std::string loadFile(const wchar_t * path) {
+		std::string str;
+		auto h = CreateFileW(path, GENERIC_READ, 0,0, OPEN_EXISTING, 0,0);
+		if (h == INVALID_HANDLE_VALUE) {
+			printf("cannot open file  %d\n", GetLastError());
+			return std::string();
+		}
+		auto size = GetFileSize(h, 0);
+		str.resize(size);
+		if (!ReadFile(h, &str[0], (ULONG)str.size(), 0,0)) {
+            printf("cannot read file  %d\n", GetLastError());
+		}
+		CloseHandle(h);
+		return str;
+	}
 
+#else
+	inline std::string loadFile(const char * path) {
+		std::string str;
+		std::ifstream stm(path, std::ios::binary);
+		
+		if (!stm.good()) {
+			printf("cannot open file\n");
+			return std::string();
+		}
+		
+		stm.seekg(0, std::ios_base::end);
+		auto size = stm.tellg();
+		stm.seekg(0, std::ios_base::beg);
+		
+		str.resize(size);
+		stm.read(&str[0], size);
+		return str;
+	}
+#endif // _MSC_VER   
+
+
+#if defined(_MSC_VER)
+int wmain(int argc, PWSTR argv[])
+{
+	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+	if (GetThreadPriority(GetCurrentThread()) != THREAD_PRIORITY_HIGHEST) printf("Priority set failed\n");
 	 
-int main() {
-    char vec[][100] = {//"<tag></tag>", "<tag> a </tag>",
-                    "<?XmllL version='1.4'?><tag><tag></tag>a <![CDATA[<tag>&apos;</tag>]]></tag>",
+	if (!SetThreadAffinityMask(GetCurrentThread(), 2)) printf("Affinity set failed\n");
+
+#else
+int main(int argc, char* argv[]) {
+#endif
+
+    //char vec[][100] = {//"<tag></tag>", "<tag> a </tag>",
+                    //"<?XmllL version='1.4'?><tag><tag></tag>a <![CDATA[<tag>&apos;</tag>]]></tag>",
                     // "<tag a='1'/>",
                     // "<tag a='1' b=\"2\"/>",
-                    };
+                    //};
+                    //"C:\\Users\\Andrei-notebook\\Downloads\\rec00001output"
+    if (argc != 2) return -1;
                         
-                        
-    for (auto s : vec) {
+    auto buf = loadFile(argv[1]);
+    //for (auto s : vec) {
         azp::parser_t p;
         p.set_callback(cb, 0);
-        parseXml(p, s, s+strlen(s));
-    }
+        if (!parseXml(p, &*buf.begin(), &*buf.end())) printf("problem\n");
+    //}
 }

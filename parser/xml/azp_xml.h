@@ -101,6 +101,9 @@ struct parser_base_t {
 	const char * _first;	// saved pointer to buffer start
 	size_t parsed_offset;	// offset of the first character following the parsed string. (=0 during parsing)
 	string_view_t tag;		// name of the current tag
+	string_view_t ver;		// xml version
+	string_view_t enc;		// encoding
+	string_view_t sddecl;	// standalone decl
 };
 
 
