@@ -415,33 +415,58 @@ static bool parseAttrName(parser_base_t& p, char * first, char * last) {
 }
 
 
-static bool parseReference(parser_base_t& p, char * first, char * last) {
-    return true;
-}
+static bool expandReference(parser_base_t& p, char * first, char * last, char * cur, char *& textEnd);
 
 
 static bool parseAttrValue(parser_base_t& p, char * first, char * last) {
     auto ch = *first;
     if ((ch != '"') & (ch != '\'')) return parse_error(p, Unexpected_char, first);
     
-    auto savedFirst = ++first;
+    auto n = last - ++first;
+    
+    auto savedFirst = first;
+    auto c = *first;
+    bool foundEnd = false;
+    
+    while (n--) {
+        if (c == ch) { foundEnd = true; break; }
+        if ((c == '&') | (c == '<')) break;
 
-    while (true) {
-        auto c = *first++;
-        if (c == ch) break;
-        
-        if (c == '&') {
-            if (!parseReference(p, first, last)) return false;
-            first = p.parsed;
-        }
-        else if (c == '<') return parse_error(p, Unexpected_char, first-1);
-        
-        if (first == last) return parse_error(p, Expected_quote, first);
+        c = *(++first);
     }
     
-    p.parsed = first;
+    if (c == '<') return parse_error(p, Unexpected_char, first);
+
+    auto textEnd = first;
     
-    string_view_t val{savedFirst, size_t(first - savedFirst - 1)};    // first was incremented after locating the closing quote
+    if (!foundEnd) {
+        while ((c == '&') & (n != 0)) {
+            auto savedEnd = textEnd;
+            if (!expandReference(p, first+1, last, savedEnd, textEnd)) return false;
+            
+            first = p.parsed;
+            
+            n = last - first;
+            if (!n) break;
+            
+            c = *first;
+            while (n--) { // maybe copy after...
+                if (c == ch) { foundEnd = true; break; }
+                if ((c == '&') | (c == '<')) break;
+                
+                *textEnd++ = c;
+                c = *(++first);
+            }
+        }
+        
+        if (c == '<') return parse_error(p, Unexpected_char, first);
+        
+        if (!foundEnd) return parse_error(p, Expected_quote, first);
+    }
+    
+    p.parsed = first + 1;
+    
+    string_view_t val{savedFirst, size_t(first - savedFirst)};
     return wrap_user_callback(Attribute_value, val, p.parsed);
 }
 
@@ -619,7 +644,7 @@ static bool parseCharData(parser_base_t& p, char * first, char * last) {
     
     auto textEnd = first;
     
-    while (ch == '&') {
+    while ((ch == '&') & (n != 0)) {
         auto savedEnd = textEnd;
         if (!expandReference(p, first+1, last, savedEnd, textEnd)) return false;
         
@@ -823,15 +848,15 @@ static bool parseTagBodyAndClosingTag(parser_base_t& p, char * first, char * las
     }
     
     
-    
 
+	 
 int main() {
     char vec[][100] = {//"<tag></tag>", "<tag> a </tag>",
                     "<?XmllL version='1.4'?><tag><tag></tag>a <![CDATA[<tag>&apos;</tag>]]></tag>",
                     // "<tag a='1'/>",
                     // "<tag a='1' b=\"2\"/>",
                     };
-                
+                        
                         
     for (auto s : vec) {
         azp::parser_t p;
