@@ -56,6 +56,8 @@ struct vector {
 	
 	T& back() { return *(_end-1); }
 	const T& back() const { return *(_end-1); }
+	
+	bool empty() const { return _start == _end; }
 };
 
 template <typename T, typename Allocator>
