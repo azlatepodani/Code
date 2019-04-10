@@ -704,7 +704,7 @@ static bool parseClosingTag(parser_base_t& p, char * first, char * last) {
     auto nameEnd = findNameEnd(first, last);
     if (first == nameEnd) return parse_error(p, Unexpected_char, first);
     
-    if (nameEnd - first != p.tag.len || memcmp(first, p.tag.str, p.tag.len) != 0)
+    if (size_t(nameEnd - first) != p.tag.len || memcmp(first, p.tag.str, p.tag.len) != 0)
         return parse_error(p, Unbalanced_collection, first);
     
     first = skip_wspace(nameEnd, last);
