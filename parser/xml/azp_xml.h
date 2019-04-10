@@ -138,6 +138,10 @@ public:
 	// Gets the offset of the first character following the parsed value.
 	// The value is 0 if the parser failed to process the string.
 	size_t get_parsed_offset() const { return parsed_offset; }
+    
+    string_view_t get_version() const { return ver; }	
+    string_view_t get_encoding() const { return enc; }	
+    string_view_t get_sddecl() const { return sddecl; }
 
 	friend bool parseXml(parser_t& p, char * first, char * last);
 	friend bool parseXml(parser_t& p, const char * first, const char * last);

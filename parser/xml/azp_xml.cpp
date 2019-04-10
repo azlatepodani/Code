@@ -5,12 +5,12 @@
 #include <string.h>
 #include "azp_xml.h"
 #include <memory>
-#include <string>
-#include <iostream>
-#include <fstream>
-#if defined(_MSC_VER)
-#include <windows.h>
-#endif
+// #include <string>
+// #include <iostream>
+// #include <fstream>
+// #if defined(_MSC_VER)
+// #include <windows.h>
+// #endif
 
 
 namespace azp {
@@ -865,82 +865,82 @@ static bool parseTagBodyAndClosingTag(parser_base_t& p, char * first, char * las
 
 } // namespace azp
 
-    bool cb (void *, azp::ParserTypes type, const azp::string_view_t& val) {
-        static const char * tab[] = { "Tag_open",
-                                        "Tag_close",
-                                        "Attribute_name",
-                                        "Attribute_value",
-                                        "Text",
-                                        "N/a","N/a","N/a",
-                                    };
-        if (val.len) printf("%s   %.*s\n", tab[type], (int)val.len, val.str);
-        else printf("%s\n", tab[type]);
-        return true;
-    }
+    // bool cb (void *, azp::ParserTypes type, const azp::string_view_t& val) {
+        // static const char * tab[] = { "Tag_open",
+                                        // "Tag_close",
+                                        // "Attribute_name",
+                                        // "Attribute_value",
+                                        // "Text",
+                                        // "N/a","N/a","N/a",
+                                    // };
+        // if (val.len) printf("%s   %.*s\n", tab[type], (int)val.len, val.str);
+        // else printf("%s\n", tab[type]);
+        // return true;
+    // }
     
     
- #if defined(_MSC_VER)
-	inline std::string loadFile(const wchar_t * path) {
-		std::string str;
-		auto h = CreateFileW(path, GENERIC_READ, 0,0, OPEN_EXISTING, 0,0);
-		if (h == INVALID_HANDLE_VALUE) {
-			printf("cannot open file  %d\n", GetLastError());
-			return std::string();
-		}
-		auto size = GetFileSize(h, 0);
-		str.resize(size);
-		if (!ReadFile(h, &str[0], (ULONG)str.size(), 0,0)) {
-            printf("cannot read file  %d\n", GetLastError());
-		}
-		CloseHandle(h);
-		return str;
-	}
+ // #if defined(_MSC_VER)
+	// inline std::string loadFile(const wchar_t * path) {
+		// std::string str;
+		// auto h = CreateFileW(path, GENERIC_READ, 0,0, OPEN_EXISTING, 0,0);
+		// if (h == INVALID_HANDLE_VALUE) {
+			// printf("cannot open file  %d\n", GetLastError());
+			// return std::string();
+		// }
+		// auto size = GetFileSize(h, 0);
+		// str.resize(size);
+		// if (!ReadFile(h, &str[0], (ULONG)str.size(), 0,0)) {
+            // printf("cannot read file  %d\n", GetLastError());
+		// }
+		// CloseHandle(h);
+		// return str;
+	// }
 
-#else
-	inline std::string loadFile(const char * path) {
-		std::string str;
-		std::ifstream stm(path, std::ios::binary);
+// #else
+	// inline std::string loadFile(const char * path) {
+		// std::string str;
+		// std::ifstream stm(path, std::ios::binary);
 		
-		if (!stm.good()) {
-			printf("cannot open file\n");
-			return std::string();
-		}
+		// if (!stm.good()) {
+			// printf("cannot open file\n");
+			// return std::string();
+		// }
 		
-		stm.seekg(0, std::ios_base::end);
-		auto size = stm.tellg();
-		stm.seekg(0, std::ios_base::beg);
+		// stm.seekg(0, std::ios_base::end);
+		// auto size = stm.tellg();
+		// stm.seekg(0, std::ios_base::beg);
 		
-		str.resize(size);
-		stm.read(&str[0], size);
-		return str;
-	}
-#endif // _MSC_VER   
+		// str.resize(size);
+		// stm.read(&str[0], size);
+		// return str;
+	// }
+// #endif // _MSC_VER   
 
 
-#if defined(_MSC_VER)
-int wmain(int argc, PWSTR argv[])
-{
-	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
-	if (GetThreadPriority(GetCurrentThread()) != THREAD_PRIORITY_HIGHEST) printf("Priority set failed\n");
+// #if defined(_MSC_VER)
+// int wmain(int argc, PWSTR argv[])
+// {
+	// SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+	// if (GetThreadPriority(GetCurrentThread()) != THREAD_PRIORITY_HIGHEST) printf("Priority set failed\n");
 	 
-	if (!SetThreadAffinityMask(GetCurrentThread(), 2)) printf("Affinity set failed\n");
+	// if (!SetThreadAffinityMask(GetCurrentThread(), 2)) printf("Affinity set failed\n");
 
-#else
-int main(int argc, char* argv[]) {
-#endif
+// #else
+// int main(int argc, char* argv[]) {
+// #endif
 
-    //char vec[][100] = {//"<tag></tag>", "<tag> a </tag>",
-                    //"<?XmllL version='1.4'?><tag><tag></tag>a <![CDATA[<tag>&apos;</tag>]]></tag>",
-                    // "<tag a='1'/>",
-                    // "<tag a='1' b=\"2\"/>",
-                    //};
-                    //"C:\\Users\\Andrei-notebook\\Downloads\\rec00001output"
-    if (argc != 2) return -1;
+    // //char vec[][100] = {//"<tag></tag>", "<tag> a </tag>",
+                    // //"<?XmllL version='1.4'?><tag><tag></tag>a <![CDATA[<tag>&apos;</tag>]]></tag>",
+                    // // "<tag a='1'/>",
+                    // // "<tag a='1' b=\"2\"/>",
+                    // //};
+                    // //"C:\\Users\\Andrei-notebook\\Downloads\\rec00001output"
+    // if (argc != 2) return -1;
                         
-    auto buf = loadFile(argv[1]);
-    //for (auto s : vec) {
-        azp::parser_t p;
-        p.set_callback(cb, 0);
-        if (!parseXml(p, &*buf.begin(), &*buf.end())) printf("problem\n");
-    //}
-}
+    // auto buf = loadFile(argv[1]);
+    // //for (auto s : vec) {
+        // azp::parser_t p;
+        // p.set_callback(cb, 0);
+        // if (!parseXml(p, &*buf.begin(), &*buf.end())) printf("problem\n");
+    // //}
+// }
