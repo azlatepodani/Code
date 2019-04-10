@@ -273,6 +273,8 @@ Append:
 		dst.append(esc, esc+escLen);
 		start = ++first;
     }
+    
+    if (start != last) dst.append(start, last);
 }
 
 
@@ -445,7 +447,15 @@ int main(int argc, char* argv[]) {
     auto buf = loadFile(argv[1]);
     //for (auto s : vec) {
         try {
-            azp::xml_reader(std::move(buf));
+            auto doc = azp::xml_reader(std::move(buf));
+            azp::xml_writer(buf, doc);
+            //printf("%s", buf.c_str());
+            //printf("\n\n!!!!!!!!!!!!!!!!!!!!!!!!\n\n");
+            doc = azp::xml_reader(buf);
+            std::string cmp;
+            azp::xml_writer(cmp, doc);
+            //printf("%s", cmp.c_str());
+            if (cmp != buf) printf("diff!!!\n");
         }
 catch(...) {        printf("problem\n");}
     //}

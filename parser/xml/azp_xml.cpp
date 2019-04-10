@@ -497,7 +497,7 @@ static bool parseAttrValue(parser_base_t& p, char * first, char * last) {
     
     p.parsed = first + 1;
     
-    string_view_t val{savedFirst, size_t(first - savedFirst)};
+    string_view_t val{savedFirst, size_t(textEnd - savedFirst)};
     return wrap_user_callback(Attribute_value, val, p.parsed);
 }
 
@@ -789,7 +789,7 @@ static bool parseProcessingInstruction(parser_base_t& p, char * first, char * la
     n = last - nameEnd;
     first = nameEnd;
     
-    if ((n < 2) | (*first == '?') & (first[1] != '>')) return parse_error(p, Expected_pi_end, first);
+    if ((n < 2) | ((*first == '?') & (first[1] != '>'))) return parse_error(p, Expected_pi_end, first);
     
     first = skip_wspace(first, last);
     if (first == nameEnd) return parse_error(p, Expected_pi_end, first);

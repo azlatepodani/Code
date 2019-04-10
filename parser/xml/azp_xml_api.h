@@ -14,7 +14,11 @@ using alloc_t = default_alloc_t;
 typedef std::pair<string_view_t, string_view_t> XmlAttribute, XmlPInstr;
 typedef vector<XmlAttribute, alloc_t>  XmlAttributes;
 
+#if defined(_MSC_VER)
 #define XmlTagSize      64
+#else
+#define XmlTagSize      80
+#endif
 
 struct XmlTag;
 
