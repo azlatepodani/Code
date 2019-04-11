@@ -494,7 +494,7 @@ static bool parseAttrValue(parser_base_t& p, char * first, char * last) {
         
         if (!foundEnd) return parse_error(p, Expected_quote, first);
     }
-    
+
     p.parsed = first + 1;
     
     string_view_t val{savedFirst, size_t(textEnd - savedFirst)};
@@ -685,11 +685,14 @@ static bool parseCharData(parser_base_t& p, char * first, char * last) {
         if (!n) break;
         
         ch = *first;
-        while (n && ((ch != '<') & (ch != '&'))) { // maybe copy after...
-            *textEnd++ = ch;
+		auto tmp = first;
+        while (n && ((ch != '<') & (ch != '&'))) {
             ch = *(++first);
             --n;
         }
+		
+		memcpy(textEnd, tmp, size_t(first-tmp));
+		textEnd += size_t(first-tmp);
     }
     
     p.parsed = first;
