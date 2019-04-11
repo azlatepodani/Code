@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <assert.h>
 #include "azp_vector.h"
 #include "azp_xml.h"
 

@@ -1,16 +1,6 @@
-#include <algorithm>
-#include <float.h>
-#include <exception>
-#include <stdio.h>
 #include <string.h>
 #include "azp_xml.h"
 #include "azp_xml_api.h"
-
-// #include <iostream>
-// #include <fstream>
-// #if defined(_MSC_VER)
-// #include <windows.h>
-// #endif
 
 
 
@@ -203,7 +193,7 @@ static void xml_writer_imp(std::string& stm, const XmlTag& tag);
 
 void xml_writer(std::string& stm, const XmlDocument& doc) {
 	auto size = xml_writer_size(doc);
-	size += size/3;
+	size += size;
 	stm.reserve(size);
 	
 	if (doc.version.len || doc.encoding.len || doc.standalone.len) {
@@ -247,13 +237,13 @@ static void xmlEscape(const char* first, size_t len, std::string& dst)
 	
 	while (first != last) {
         auto ch = *first;
-        if ((uint32_t(uint8_t(ch))|0x20) < 'a') {
+        if (uint32_t(uint8_t(ch)) - 0x22 <= 0x1C) {
             switch (ch) {
-                case '"': goto Escapequ;
-                case '&': goto Escapeam;
-                case '\'': goto Escapeap;
-                case '<': goto Escapelt;
-                case '>': goto Escapegt;
+                case '"': goto Escapequ; // 22
+                case '&': goto Escapeam; // 26
+                case '\'': goto Escapeap; // 27
+                case '<': goto Escapelt; // 3C
+                case '>': goto Escapegt; // 3E
                     
                 default:;
             }
@@ -280,11 +270,7 @@ Append:
 
 static size_t xml_writer_size(const XmlTag& tag) {
 	size_t size = 2*tag.name.len + 5;
-	
-	for (auto& att : tag.attributes) {
-		size += 3 + att.first.len + att.second.len;
-	}
-	
+		
 	for (auto& node : tag.children) {
 		if (node.type == XmlGenNode::Tag) {
 			size += xml_writer_size(node.tag());
@@ -301,10 +287,6 @@ static size_t xml_writer_size(const XmlTag& tag) {
 			size += 12 + node.str().len;	//<![CDATA[]]>
 			break;
 			
-		case XmlGenNode::Pinstr:
-			size += 5 + node.pi().first.len + node.pi().second.len;
-			break;
-			
 		default:;
 		}
 	}
@@ -313,15 +295,7 @@ static size_t xml_writer_size(const XmlTag& tag) {
 }
 
 static size_t xml_writer_size(const XmlDocument& doc) {
-	size_t size = 50;	// prelude
-	
-	for (auto& node : doc.misc) {
-		size += 5 + node.pi().first.len + node.pi().second.len;
-	}
-	
-	size += xml_writer_size(doc.root);
-	
-	return size;
+	return xml_writer_size(doc.root) + 50;
 }
 
 
@@ -384,79 +358,3 @@ static void xml_writer_imp(std::string& stm, const XmlTag& tag) {
 
 } // namespace asu
 
-
-    
- // #if defined(_MSC_VER)
-	// inline std::string loadFile(const wchar_t * path) {
-		// std::string str;
-		// auto h = CreateFileW(path, GENERIC_READ, 0,0, OPEN_EXISTING, 0,0);
-		// if (h == INVALID_HANDLE_VALUE) {
-			// printf("cannot open file  %d\n", GetLastError());
-			// return std::string();
-		// }
-		// auto size = GetFileSize(h, 0);
-		// str.resize(size);
-		// if (!ReadFile(h, &str[0], (ULONG)str.size(), 0,0)) {
-            // printf("cannot read file  %d\n", GetLastError());
-		// }
-		// CloseHandle(h);
-		// return str;
-	// }
-
-// #else
-	// inline std::string loadFile(const char * path) {
-		// std::string str;
-		// std::ifstream stm(path, std::ios::binary);
-		
-		// if (!stm.good()) {
-			// printf("cannot open file\n");
-			// return std::string();
-		// }
-		
-		// stm.seekg(0, std::ios_base::end);
-		// auto size = stm.tellg();
-		// stm.seekg(0, std::ios_base::beg);
-		
-		// str.resize(size);
-		// stm.read(&str[0], size);
-		// return str;
-	// }
-// #endif // _MSC_VER   
-
-
-// #if defined(_MSC_VER)
-// int wmain(int argc, PWSTR argv[])
-// {
-	// SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
-	// if (GetThreadPriority(GetCurrentThread()) != THREAD_PRIORITY_HIGHEST) printf("Priority set failed\n");
-	 
-	// if (!SetThreadAffinityMask(GetCurrentThread(), 2)) printf("Affinity set failed\n");
-
-// #else
-// int main(int argc, char* argv[]) {
-// #endif
-
-    // //char vec[][100] = {//"<tag></tag>", "<tag> a </tag>",
-                    // //"<?XmllL version='1.4'?><tag><tag></tag>a <![CDATA[<tag>&apos;</tag>]]></tag>",
-                    // // "<tag a='1'/>",
-                    // // "<tag a='1' b=\"2\"/>",
-                    // //};
-                    // //"C:\\Users\\Andrei-notebook\\Downloads\\rec00001output"
-    // if (argc != 2) return -1;
-                        
-    // auto buf = loadFile(argv[1]);
-    // //for (auto s : vec) {
-        // try {
-            // auto doc = azp::xml_reader(std::move(buf));
-            // azp::xml_writer(buf, doc);
-            // //printf("%s", buf.c_str());
-            // //printf("\n\n!!!!!!!!!!!!!!!!!!!!!!!!\n\n");
-            // doc = azp::xml_reader(buf);
-            // std::string cmp;
-            // azp::xml_writer(cmp, doc);
-            // //printf("%s", cmp.c_str());
-            // if (cmp != buf) printf("diff!!!\n");
-        // }
-// catch(...) {        printf("problem\n");}
-    // //}
-// }

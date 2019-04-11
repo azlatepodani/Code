@@ -1,16 +1,7 @@
-#include <stdlib.h>
-#include <locale.h>
-#include <cmath>
-#include <climits>
 #include <string.h>
 #include "azp_xml.h"
 #include <memory>
-// #include <string>
-// #include <iostream>
-// #include <fstream>
-// #if defined(_MSC_VER)
-// #include <windows.h>
-// #endif
+
 
 
 namespace azp {
@@ -391,30 +382,15 @@ static bool parseXmlTag(parser_base_t& p, char * first, char * last) {
     string_view_t val{0,0};
     return wrap_user_callback(Tag_close, val, p.parsed);
 }
-
-
+                       //  0 1 2 3 4 5 6 7 8  9 a b c d e f
+const char nameChar[] = {/*0,0,0,0,0,0,0,0,0*/1,1,0,0,1,0,0,  // 0_
+                           0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,  // 1_
+                           1,1,1,0,0,0,0,1,0, 0,0,0,0,0,0,1,  // 2_
+                           0,0,0,0,0,0,0,0,0, 0,0,1,0,1,1,0}; // 3_
 static char * findNameEnd(char * first, char * last) {
     while (first != last) {
         auto ch = *first;
-        if ((uint32_t(uint8_t(ch))|0x20) < 'a') {
-            switch (ch) {
-                case '/':
-                case '>':
-                case ' ':
-                case '\t':
-                case '\n':
-                case '\r':
-                case '=':
-                case ';':
-                case '"':
-                case '\'':
-                case '!':
-                    return first;
-                    
-                default:;
-            }
-        }
-        
+        if ((ch > 8) && (ch < 0x3F) && (nameChar[ch-9])) { return first; }
         ++first;
     }
 
