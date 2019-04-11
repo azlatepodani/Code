@@ -601,64 +601,64 @@ static bool expandReference(parser_base_t& p, char * first, char * last, char * 
     auto n = last - first++;
     
     if (ch != '#') {
+		auto s = first;
         switch (ch) {
             case 'a': 
-                if (n >= 3 && memcmp(first, "mp;", 3) == 0) {
+                if (n >= 3 && ((s[0] == 'a') & (s[1] == 'p') & (s[2] == ';'))) {
                     *cur++ = '&';
                     first += 3;
-                    goto Out;
+					break;
                 }
                 
-                if (n >= 4 && memcmp(first, "pos;", 4) == 0) {
+                if (n >= 4 && ((s[0] == 'p') & (s[1] == 'o') & (s[1] == 's') & (s[3] == ';'))) {
                     *cur++ = '\'';
                     first += 4;
-                    goto Out;
+					break;
                 }
-                break;
+				
+                goto Out;
                 
             case 'g':
-                if (n >= 2 && memcmp(first, "t;", 2) == 0) {
+                if (n >= 2 && ((s[0] == 't') & (s[1] == ';'))) {
                     *cur++ = '>';
                     first += 2;
-                    goto Out;
+					break;
                 }
                 
-                break;
+                goto Out;
                 
             case 'l':
-                if (n >= 2 && memcmp(first, "t;", 2) == 0) {
+                if (n >= 2 && ((s[0] == 't') & (s[1] == ';'))) {
                     *cur++ = '<';
                     first += 2;
-                    goto Out;
+					break;
                 }
                 
-                break;
+                goto Out;
                 
             case 'q':
-                if (n >= 4 && memcmp(first, "uot;", 4) == 0) {
+                if (n >= 4 && ((s[0] == 'u') & (s[1] == 'o') & (s[1] == 't') & (s[3] == ';'))) {
                     *cur++ = '"';
                     first += 4;
-                    goto Out;
+					break;
                 }
                 
-                break;
                 
-            default:;
+            default:
+				// just skip the text for now 
+Out:
+				first = findNameEnd(first-1, last);
+				if (first == last || *first != ';') return parse_error(p, Expected_semicolon, first);
+				++first;
         }
         
-        // just skip the text for now 
-        first = findNameEnd(first-1, last);
-        if (first == last || *first != ';') return parse_error(p, Expected_semicolon, first);
-        ++first;
+		textEnd = cur;
+		p.parsed =  first;
+		return true;
     }
     else {
         return expandCharReference(p, first, last, cur, textEnd);
     }
-    
-Out:
-    textEnd = cur;
-    p.parsed =  first;
-    return true;
 }
 
 
