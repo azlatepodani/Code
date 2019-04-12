@@ -82,8 +82,8 @@ JsonValue& JsonValue::operator=(const JsonValue& other) {
 				u.float_num = other.u.float_num;
 				break;
 				
-			case Bool_true:
-			case Bool_false:
+			// case Bool_true:
+			// case Bool_false:
 			default: // case Empty:
 			;	// nothing to do
 		}
@@ -148,11 +148,11 @@ JsonValue& JsonValue::operator=(JsonValue&& other) noexcept {
 			u.string.~JsonString();
 			break;
 			
-		case Number:
-		case String_view:
-		case Float_num:
-		case Bool_true:
-		case Bool_false:
+		// case Number:
+		// case String_view:
+		// case Float_num:
+		// case Bool_true:
+		// case Bool_false:
 		default: // case Empty:
 		;	// nothing to do
 	}
@@ -184,8 +184,8 @@ JsonValue& JsonValue::operator=(JsonValue&& other) noexcept {
 			u.float_num = other.u.float_num;
 			break;
 			
-		case Bool_true:
-		case Bool_false:
+		// case Bool_true:
+		// case Bool_false:
 		default: // case Empty:
 		;	// nothing to do
 	}
@@ -208,11 +208,11 @@ JsonValue::~JsonValue() noexcept {
 			u.string.~JsonString();
 			break;
 			
-		case String_view:
-		case Number:
-		case Float_num:
-		case Bool_true:
-		case Bool_false:
+		// case String_view:
+		// case Number:
+		// case Float_num:
+		// case Bool_true:
+		// case Bool_false:
 		default: // case Empty:
 		;	// nothing to do
 	}
@@ -331,81 +331,81 @@ static void json_writer_imp(std::string& stm, const JsonValue& val) {
 }
 
 
-static const struct num_size_t {
-	uint32_t val;
-	size_t size;
-} g_tabl[] = {
-	{ 10, 1 },
-	{ 100, 2 },
-	{ 1000, 3 },
-	{ 10000, 4 },
-	{ 100000, 5 },
-	{ 1000000, 6 },
-	{ 10000000, 7 },
-	{ 100000000, 8 },
-	{ 1000000000, 9 },
-};
+// static const struct num_size_t {
+	// uint32_t val;
+	// size_t size;
+// } g_tabl[] = {
+	// { 10, 1 },
+	// { 100, 2 },
+	// { 1000, 3 },
+	// { 10000, 4 },
+	// { 100000, 5 },
+	// { 1000000, 6 },
+	// { 10000000, 7 },
+	// { 100000000, 8 },
+	// { 1000000000, 9 },
+// };
 
 
-static size_t number_size(int32_t num) {
-	uint32_t n;
-	int32_t negative = 0;
+// static size_t number_size(int32_t num) {
+	// uint32_t n;
+	// int32_t negative = 0;
 	
-	if (num >= 0) n = num;
-	else {
-		if ((uint32_t)num == 0x80000000U) return 11;
-		n = -num;
-		negative = 1;	// minus sign
-	}
+	// if (num >= 0) n = num;
+	// else {
+		// if ((uint32_t)num == 0x80000000U) return 11;
+		// n = -num;
+		// negative = 1;	// minus sign
+	// }
 	
-	auto tabend = g_tabl + sizeof(g_tabl) / sizeof(g_tabl[0]);
-	auto pos = std::lower_bound(g_tabl, tabend, n, [](const num_size_t& el, uint32_t num)
-	{
-		return num >= el.val;
-	});
+	// auto tabend = g_tabl + sizeof(g_tabl) / sizeof(g_tabl[0]);
+	// auto pos = std::lower_bound(g_tabl, tabend, n, [](const num_size_t& el, uint32_t num)
+	// {
+		// return num >= el.val;
+	// });
 	
-	return negative + ((pos != tabend) ? pos->size : 10);
-}
+	// return negative + ((pos != tabend) ? pos->size : 10);
+// }
 
 
-static const struct num_size_ll_t {
-	uint64_t val;
-	size_t size;
-} g_tabll[] = {
-	{ 10000000000LL, 10 },
-	{ 100000000000LL, 11 },
-	{ 1000000000000LL, 12 },
-	{ 10000000000000LL, 13 },
-	{ 100000000000000LL, 14 },
-	{ 1000000000000000LL, 15 },
-	{ 10000000000000000LL, 16 },
-	{ 100000000000000000LL, 17 },
-	{ 1000000000000000000LL, 18 },		// LLONG_MAX  9,223,372,036,854,775,807LL
-};
+// static const struct num_size_ll_t {
+	// uint64_t val;
+	// size_t size;
+// } g_tabll[] = {
+	// { 10000000000LL, 10 },
+	// { 100000000000LL, 11 },
+	// { 1000000000000LL, 12 },
+	// { 10000000000000LL, 13 },
+	// { 100000000000000LL, 14 },
+	// { 1000000000000000LL, 15 },
+	// { 10000000000000000LL, 16 },
+	// { 100000000000000000LL, 17 },
+	// { 1000000000000000000LL, 18 },		// LLONG_MAX  9,223,372,036,854,775,807LL
+// };
 
 
-static size_t number_size(int64_t num) {
-	int32_t negative = 0;
+// static size_t number_size(int64_t num) {
+	// int32_t negative = 0;
 	
-	uint64_t n;
+	// uint64_t n;
 	
-	if (num >= -2147483647 && num <= 2147483647) return number_size(int32_t(num));
+	// if (num >= -2147483647 && num <= 2147483647) return number_size(int32_t(num));
 	
-	if (num >= 0) n = num;
-	else {
-		if ((uint64_t)num == 0x8000000000000000ULL) return 20;
-		n = -num;
-		negative = 1;
-	}
+	// if (num >= 0) n = num;
+	// else {
+		// if ((uint64_t)num == 0x8000000000000000ULL) return 20;
+		// n = -num;
+		// negative = 1;
+	// }
 	
-	auto tabend = g_tabll + sizeof(g_tabll) / sizeof(g_tabll[0]);
-	auto pos = std::lower_bound(g_tabll, tabend, n, [](const num_size_ll_t& el, uint64_t num)
-	{
-		return num >= el.val;
-	});
+	// auto tabend = g_tabll + sizeof(g_tabll) / sizeof(g_tabll[0]);
+	// auto pos = std::lower_bound(g_tabll, tabend, n, [](const num_size_ll_t& el, uint64_t num)
+	// {
+		// return num >= el.val;
+	// });
 	
-	return negative + ((pos != tabend) ? pos->size : 19);
-}
+	// return negative + ((pos != tabend) ? pos->size : 19);
+// }
 
 
 static size_t json_writer_object_size(const JsonObject& val) {
@@ -461,7 +461,8 @@ static size_t json_writer_size(const JsonValue& val) {
 			break;
 			
 		case JsonValue::Number:
-			size = number_size(val.u.number);
+			//size = number_size(val.u.number);
+            size = 8;
 			break;
 			
 		case JsonValue::Float_num:

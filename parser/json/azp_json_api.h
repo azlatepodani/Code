@@ -186,8 +186,8 @@ inline JsonValue::JsonValue(JsonValue&& other) noexcept
 			u.float_num = other.u.float_num;
 			break;
 			
-		case Bool_true:
-		case Bool_false:
+		// case Bool_true:
+		// case Bool_false:
 		default: // case Empty:
 		;	// nothing to do
 	}
