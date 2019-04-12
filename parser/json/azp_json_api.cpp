@@ -238,14 +238,12 @@ void json_writer(std::string& stm, const JsonValue& val) {
 
 template <typename Allocator>
 struct parser_callback_ctx_t {
-	bool firstCall;
     vector<JsonValue, Allocator> stack;
-    JsonValue * result;
 	Allocator& a;
 	
 	// cppcheck-suppress noExplicitConstructor
 	parser_callback_ctx_t(Allocator& a) 
-		: firstCall(1), stack(a), result(0), a(a)
+		: stack(a), a(a)
 	{ }
 };
 
@@ -266,14 +264,17 @@ std::pair<JsonValue, std::string> json_reader(const std::string& stm) {
 		p.set_max_recursion(20);
 		p.set_callback(&parser_callback<alloc_t>, &ctx);
 
-		ctx.stack.reserve(p.get_max_recursion());
-
-		ctx.result = &val.first;
+		ctx.stack.reserve(p.get_max_recursion() + 1);
 		val.second = stm;
+        
+        // ensure that we have something on the stack. This helps us avoid the empty stack case
+        parser_callback<alloc_t>(&ctx, Array_begin, value_t());
 		
 		if (!parseJson(p, &val.second[0], &val.second[0]+val.second.size())) {
 			throw std::exception(/*"cannot parse"*/);
 		}
+        
+        val.first = std::move(*(ctx.stack.begin()->u.array.begin()));
 	}
 	
 	return val;
@@ -330,83 +331,84 @@ static void json_writer_imp(std::string& stm, const JsonValue& val) {
 	}
 }
 
-
-// static const struct num_size_t {
-	// uint32_t val;
-	// size_t size;
-// } g_tabl[] = {
-	// { 10, 1 },
-	// { 100, 2 },
-	// { 1000, 3 },
-	// { 10000, 4 },
-	// { 100000, 5 },
-	// { 1000000, 6 },
-	// { 10000000, 7 },
-	// { 100000000, 8 },
-	// { 1000000000, 9 },
-// };
-
-
-// static size_t number_size(int32_t num) {
-	// uint32_t n;
-	// int32_t negative = 0;
-	
-	// if (num >= 0) n = num;
-	// else {
-		// if ((uint32_t)num == 0x80000000U) return 11;
-		// n = -num;
-		// negative = 1;	// minus sign
-	// }
-	
-	// auto tabend = g_tabl + sizeof(g_tabl) / sizeof(g_tabl[0]);
-	// auto pos = std::lower_bound(g_tabl, tabend, n, [](const num_size_t& el, uint32_t num)
-	// {
-		// return num >= el.val;
-	// });
-	
-	// return negative + ((pos != tabend) ? pos->size : 10);
-// }
+/*
+This code gives us perfect precision at performance cost
+static const struct num_size_t {
+	uint32_t val;
+	size_t size;
+} g_tabl[] = {
+	{ 10, 1 },
+	{ 100, 2 },
+	{ 1000, 3 },
+	{ 10000, 4 },
+	{ 100000, 5 },
+	{ 1000000, 6 },
+	{ 10000000, 7 },
+	{ 100000000, 8 },
+	{ 1000000000, 9 },
+};
 
 
-// static const struct num_size_ll_t {
-	// uint64_t val;
-	// size_t size;
-// } g_tabll[] = {
-	// { 10000000000LL, 10 },
-	// { 100000000000LL, 11 },
-	// { 1000000000000LL, 12 },
-	// { 10000000000000LL, 13 },
-	// { 100000000000000LL, 14 },
-	// { 1000000000000000LL, 15 },
-	// { 10000000000000000LL, 16 },
-	// { 100000000000000000LL, 17 },
-	// { 1000000000000000000LL, 18 },		// LLONG_MAX  9,223,372,036,854,775,807LL
-// };
+static size_t number_size(int32_t num) {
+	uint32_t n;
+	int32_t negative = 0;
+	
+	if (num >= 0) n = num;
+	else {
+		if ((uint32_t)num == 0x80000000U) return 11;
+		n = -num;
+		negative = 1;	// minus sign
+	}
+	
+	auto tabend = g_tabl + sizeof(g_tabl) / sizeof(g_tabl[0]);
+	auto pos = std::lower_bound(g_tabl, tabend, n, [](const num_size_t& el, uint32_t num)
+	{
+		return num >= el.val;
+	});
+	
+	return negative + ((pos != tabend) ? pos->size : 10);
+}
 
 
-// static size_t number_size(int64_t num) {
-	// int32_t negative = 0;
-	
-	// uint64_t n;
-	
-	// if (num >= -2147483647 && num <= 2147483647) return number_size(int32_t(num));
-	
-	// if (num >= 0) n = num;
-	// else {
-		// if ((uint64_t)num == 0x8000000000000000ULL) return 20;
-		// n = -num;
-		// negative = 1;
-	// }
-	
-	// auto tabend = g_tabll + sizeof(g_tabll) / sizeof(g_tabll[0]);
-	// auto pos = std::lower_bound(g_tabll, tabend, n, [](const num_size_ll_t& el, uint64_t num)
-	// {
-		// return num >= el.val;
-	// });
-	
-	// return negative + ((pos != tabend) ? pos->size : 19);
-// }
+static const struct num_size_ll_t {
+	uint64_t val;
+	size_t size;
+} g_tabll[] = {
+	{ 10000000000LL, 10 },
+	{ 100000000000LL, 11 },
+	{ 1000000000000LL, 12 },
+	{ 10000000000000LL, 13 },
+	{ 100000000000000LL, 14 },
+	{ 1000000000000000LL, 15 },
+	{ 10000000000000000LL, 16 },
+	{ 100000000000000000LL, 17 },
+	{ 1000000000000000000LL, 18 },		// LLONG_MAX  9,223,372,036,854,775,807LL
+};
 
+
+static size_t number_size(int64_t num) {
+	int32_t negative = 0;
+	
+	uint64_t n;
+	
+	if (num >= -2147483647 && num <= 2147483647) return number_size(int32_t(num));
+	
+	if (num >= 0) n = num;
+	else {
+		if ((uint64_t)num == 0x8000000000000000ULL) return 20;
+		n = -num;
+		negative = 1;
+	}
+	
+	auto tabend = g_tabll + sizeof(g_tabll) / sizeof(g_tabll[0]);
+	auto pos = std::lower_bound(g_tabll, tabend, n, [](const num_size_ll_t& el, uint64_t num)
+	{
+		return num >= el.val;
+	});
+	
+	return negative + ((pos != tabend) ? pos->size : 19);
+}
+//*/
 
 static size_t json_writer_object_size(const JsonObject& val) {
 	size_t size = 2;
@@ -601,111 +603,59 @@ template <typename Allocator>
 static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& value) noexcept {
 	auto& cbCtx = *(parser_callback_ctx_t<Allocator> *)ctx;
 	
-	if (!cbCtx.firstCall) {
-		if (type == Object_key) {
-			JsonValue& obj = cbCtx.stack.back();
-			obj.u.object.push_back(JsonObjectField(string_view_t{value.string.p, value.string.len}, JsonValue()));
-			return true;
-		}
-		
-		if (type == String_val) {
-			JsonValue data(string_view_t{value.string.p, value.string.len});
-			return add_scalar_value(cbCtx, std::move(data));
-		}
-		
-		switch (type)
-		{
-		case Array_begin:
-			cbCtx.stack.push_back(JsonValue(JsonArray(cbCtx.a, 4)));
-			break;
+    if (type == Object_key) {
+        JsonValue& obj = cbCtx.stack.back();
+        obj.u.object.push_back(JsonObjectField(string_view_t{value.string.p, value.string.len}, JsonValue()));
+        return true;
+    }
+    
+    if (type == String_val) {
+        JsonValue data(string_view_t{value.string.p, value.string.len});
+        return add_scalar_value(cbCtx, std::move(data));
+    }
+    
+    switch (type)
+    {
+    case Array_begin:
+        cbCtx.stack.push_back(JsonValue(JsonArray(cbCtx.a, 4)));
+        break;
 
-		case Object_begin:
-			cbCtx.stack.push_back(JsonValue(JsonObject(cbCtx.a, 4)));
-			break;
-			
-		case Array_end:
-		case Object_end: {
-			JsonValue obj(std::move(cbCtx.stack.back()));
-			cbCtx.stack.pop_back();
-			
-			/*
-			if (type == Object_end) {
-				auto& o = obj.u.object;
-				std::sort(o.begin(), o.end(), less());
-			}
-			//*/
-			
-			if (cbCtx.stack.begin() != cbCtx.stack.end()) {
-				return add_scalar_value(cbCtx, std::move(obj));
-			}
-			else {
-				// we're done
-				*cbCtx.result = std::move(obj);
-			}
-			
-			break;
-		}
-		case Number_int:
-			return add_scalar_value(cbCtx, JsonValue(value.integer));
+    case Object_begin:
+        cbCtx.stack.push_back(JsonValue(JsonObject(cbCtx.a, 4)));
+        break;
+        
+    case Array_end:
+    case Object_end: {
+        JsonValue obj(std::move(cbCtx.stack.back()));
+        cbCtx.stack.pop_back();
+        
+        /*
+        if (type == Object_end) {
+            auto& o = obj.u.object;
+            std::sort(o.begin(), o.end(), less());
+        }
+        //*/
+        
+        return add_scalar_value(cbCtx, std::move(obj));
+    }
+    case Number_int:
+        return add_scalar_value(cbCtx, JsonValue(value.integer));
 
-		case Number_float:
-			return add_scalar_value(cbCtx, JsonValue(value.number));
+    case Number_float:
+        return add_scalar_value(cbCtx, JsonValue(value.number));
 
-		case Null_val:
-			return add_scalar_value(cbCtx, JsonValue());
+    case Null_val:
+        return add_scalar_value(cbCtx, JsonValue());
 
-		case Bool_true:
-			return add_scalar_value(cbCtx, JsonValue(true));
+    case Bool_true:
+        return add_scalar_value(cbCtx, JsonValue(true));
 
-		case Bool_false:
-			return add_scalar_value(cbCtx, JsonValue(false));
+    case Bool_false:
+        return add_scalar_value(cbCtx, JsonValue(false));
 
-		default:
-			return false;
-		}
-	}
-	else {
-		cbCtx.firstCall = false;
-		
-		if (type == Object_begin) {
-			cbCtx.stack.push_back(JsonValue(JsonObject(cbCtx.a, 4)));
-			return true;
-		}
-		
-		if (type == Array_begin) {
-			cbCtx.stack.push_back(JsonValue(JsonArray(cbCtx.a, 4)));
-			return true;
-		}
-		
-		switch (type)
-		{
-		case Number_int:
-			*cbCtx.result = JsonValue(value.integer);
-			break;
-
-		case Number_float:
-			*cbCtx.result = JsonValue(value.number);
-			break;
-
-		case Null_val:
-			*cbCtx.result = JsonValue();
-			break;
-
-		case Bool_true:
-			*cbCtx.result = JsonValue(true);
-			break;
-
-		case Bool_false:
-			*cbCtx.result = JsonValue(false);
-			break;
-
-		case String_val:
-			*cbCtx.result = JsonValue(string_view_t{value.string.p, value.string.len});
-			break;
-
-		default: return false;
-		}
-	}
+    default:
+        return false;
+    }
 
     return true;
 }
