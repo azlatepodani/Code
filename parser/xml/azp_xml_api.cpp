@@ -65,46 +65,64 @@ XmlGenNode& XmlGenNode::operator=(const XmlGenNode& node) {
 
 template <typename Allocator>
 struct parser_callback_ctx_t {
-	bool firstCall;
     vector<XmlTag, Allocator> stack;
     XmlPInstr attr_pi;
-    XmlDocument * result;
 	Allocator& a;
 	
 	// cppcheck-suppress noExplicitConstructor
 	parser_callback_ctx_t(Allocator& a) 
-		: firstCall(1), stack(a), result(0), a(a)
+		: stack(a), a(a)
 	{ }
 };
 
 
 template <typename Allocator>
 static bool parser_callback(void* ctx, enum ParserTypes type, const string_view_t& value) noexcept;
-
+static void assignResult(parser_callback_ctx_t<alloc_t>& ctx, XmlDocument& doc);
 
 
 XmlDocument xml_reader(std::string stm) {
     XmlDocument doc;
-    if (!stm.empty()) {
-		parser_t p;
-		alloc_t a;
+    if (stm.empty()) return doc;
+	
+	parser_t p;
+	alloc_t a;
 
-		auto ctx = parser_callback_ctx_t<alloc_t>(a);
+	auto ctx = parser_callback_ctx_t<alloc_t>(a);
 
-		p.set_max_recursion(20);
-		p.set_callback(&parser_callback<alloc_t>, &ctx);
+	p.set_max_recursion(20);
+	p.set_callback(&parser_callback<alloc_t>, &ctx);
 
-		ctx.stack.reserve(p.get_max_recursion());
+	ctx.stack.reserve(p.get_max_recursion()+1);
+	ctx.stack.push_back(XmlTag{{0,0}});
 
-		ctx.result = &doc;
-		doc._backing = std::move(stm);
-		
-		if (!parseXml(p, &doc._backing[0], &doc._backing[0]+doc._backing.size())) {
-			throw std::exception(/*"cannot parse"*/);
-		}
+	doc._backing = std::move(stm);
+	
+	if (!parseXml(p, &doc._backing[0], &doc._backing[0]+doc._backing.size())) {
+		throw std::exception(/*"cannot parse"*/);
 	}
 	
+	assignResult(ctx, doc);
+	
 	return doc;
+}
+
+
+static void assignResult(parser_callback_ctx_t<alloc_t>& ctx, XmlDocument& doc) {
+	bool haveRoot = false;
+	
+	if (ctx.stack.size() != 1) throw std::exception(/*"unbalanced collection"*/);
+	
+	for (auto& n : ctx.stack.back().children) {
+		if (n.type == XmlGenNode::Pinstr) {
+			doc.misc.push_back(std::move(n));
+		}
+		else {
+			if (haveRoot) throw std::exception(/*"multiple root nodes"*/);
+			haveRoot = true;
+			doc.root = std::move(n.tag());
+		}
+	}
 }
 
 
@@ -112,75 +130,41 @@ template <typename Allocator>
 static bool parser_callback(void* ctx, enum ParserTypes type, const string_view_t& value) noexcept {
 	auto& cbCtx = *(parser_callback_ctx_t<Allocator> *)ctx;
 	
-	if (!cbCtx.firstCall) {		
-		switch (type)
-		{
-		case Tag_open:
-			cbCtx.stack.push_back(XmlTag(string_view_t(value)));
-			break;
-			
-		case Tag_close: {
-			XmlTag obj(std::move(cbCtx.stack.back()));
-			cbCtx.stack.pop_back();
-			
-			if (cbCtx.stack.begin() != cbCtx.stack.end()) {
-                cbCtx.stack.back().children.push_back(std::move(obj));
-			}
-			else {
-				// we're done
-				cbCtx.result->root = std::move(obj);
-			}
-			
-			break;
-		}
-		case Text:
-        case Cdata_text:
-			cbCtx.stack.back().children.push_back({string_view_t(value), (type==Text)?false:true});
-            break;
-
-		case Attribute_name:
-		case Pinstr_name:
-            cbCtx.attr_pi.first = value;
-			break;
-
-        case Attribute_value:
-            cbCtx.attr_pi.second = value;
-            cbCtx.stack.back().attributes.push_back(std::move(cbCtx.attr_pi));
-			break;
-            
-        case Pinstr_text:
-            cbCtx.attr_pi.second = value;
-            cbCtx.stack.back().children.push_back(std::move(cbCtx.attr_pi));
-			break;
-
-		default:
-			return false;
-		}
+	switch (type)
+	{
+	case Tag_open:
+		cbCtx.stack.push_back(XmlTag(string_view_t(value)));
+		break;
+		
+	case Tag_close: {
+		XmlTag obj(std::move(cbCtx.stack.back()));
+		cbCtx.stack.pop_back();
+		
+		cbCtx.stack.back().children.push_back(std::move(obj));
+		break;
 	}
-	else {
-		if (type == Tag_open) {
-            cbCtx.firstCall = false;
-			cbCtx.stack.push_back(XmlTag(string_view_t(value)));
-			return true;
-		}
-				
-		switch (type)
-		{
-		case Attribute_name:
-        case Pinstr_name:
-			cbCtx.attr_pi.first = value;
-			break;
+	case Text:
+	case Cdata_text:
+		cbCtx.stack.back().children.push_back({string_view_t(value), (type==Text)?false:true});
+		break;
 
-		case Attribute_value:
-			cbCtx.stack.back().attributes.push_back(std::move(cbCtx.attr_pi));
-			break;
+	case Attribute_name:
+	case Pinstr_name:
+		cbCtx.attr_pi.first = value;
+		break;
 
-		case Pinstr_text:
-			cbCtx.result->misc.push_back(std::move(cbCtx.attr_pi));
-			break;
+	case Attribute_value:
+		cbCtx.attr_pi.second = value;
+		cbCtx.stack.back().attributes.push_back(std::move(cbCtx.attr_pi));
+		break;
+		
+	case Pinstr_text:
+		cbCtx.attr_pi.second = value;
+		cbCtx.stack.back().children.push_back(std::move(cbCtx.attr_pi));
+		break;
 
-		default: return false;
-		}
+	default:
+		return false;
 	}
 
     return true;
