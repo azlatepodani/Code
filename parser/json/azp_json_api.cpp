@@ -3,6 +3,7 @@
 #include <exception>
 #include <stdio.h>
 #include <string.h>
+#include <charconv>
 #include "azp_json.h"
 #include "azp_json_api.h"
 
@@ -284,7 +285,8 @@ std::pair<JsonValue, std::string> json_reader(const std::string& stm) {
 static void jsonEscape(const char* src, size_t len, std::string& dst);
 static void json_writer_object(std::string& stm, const JsonObject& val);
 static void json_writer_array(std::string& stm, const JsonArray& val);
-static std::string double_to_string(double dbl);
+static void double_to_string(double dbl, std::string& stm);
+static void longlong_to_string(long long num, std::string& stm);
 
 
 static void json_writer_imp(std::string& stm, const JsonValue& val) {
@@ -311,11 +313,11 @@ static void json_writer_imp(std::string& stm, const JsonValue& val) {
 			break;
 			
 		case JsonValue::Number:
-			stm.append(std::to_string(val.u.number));
+			longlong_to_string(val.u.number, stm);
 			break;
 			
 		case JsonValue::Float_num:
-			stm.append(double_to_string(val.u.float_num));
+			double_to_string(val.u.float_num, stm);
 			break;
 			
 		case JsonValue::Bool_true:
@@ -661,12 +663,42 @@ static bool parser_callback(void* ctx, enum ParserTypes type, const value_t& val
 }
 
 
-static std::string double_to_string(double dbl) {
-    char buf[340] = { 0, };
-    auto len = sprintf(buf, "%.*g", DBL_DECIMAL_DIG, dbl);
-    return std::string(buf, buf+len);
+#ifdef _MSC_VER
+static void double_to_string(double dbl, std::string& stm) {
+	size_t len;
+    char buf[1024] = { 0, };
+    len = sprintf(buf, "%.*g", DBL_DECIMAL_DIG, dbl);
+    stm.append(buf, buf+len);
 }
+#else
+static void double_to_string(double dbl, std::string& stm) {
+	std::to_chars_result;
+	char buf[1024] = {0,};
+	res = std::to_chars(buf, std::end(buf), dbl, std::chars_format::general, DBL_DECIMAL_DIG);
+	if (res.ec == std::errc()) {
+		stm.append(buf, res.ptr);
+	}
+	else {
+		throw std::exception();
+	}
+}
+#endif
 
+
+static void longlong_to_string(long long num, std::string& stm) {
+	auto first = &stm.back();
+	auto last = first + (stm.capacity() - stm.size());
+	auto res = std::to_chars(first, last, num, 10);
+	if (res.ec == std::errc()) {
+		stm._Get_data()._Mysize += res.ptr - first;
+	}
+	else {
+		char buf[64] = { 0, };
+		res = std::to_chars(buf, std::end(buf), num, 10);
+		if (res.ec != std::errc()) throw std::exception();
+		stm.append(buf, res.ptr);
+	}
+}
 
 
 JsonObjectField& JsonObjectField::operator=(JsonObjectField&& other) noexcept {

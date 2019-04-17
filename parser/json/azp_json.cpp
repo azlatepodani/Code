@@ -5,6 +5,7 @@
 #include <string.h>
 #include "azp_json.h"
 #include <memory>
+#include <charconv>
 
 
 namespace azp {
@@ -398,38 +399,28 @@ static bool parseNumberNoCopy(parser_base_t& p, char * first, char * last) {
 	}
 	
 	*(last-1) = savedCh;	// replace the sentinel with the saved character
-
-	if (haveDot && !haveExp && !haveDotDigit ||
-		haveExp && !haveExpDigit ||
-		!haveDigit)
-	{
-		return parse_error(p, Invalid_number, savedFirst);
-	}
-
-	savedCh = *first;
-	*first = 0;
 	
 	bool result;
 	if (haveDot | haveExp) {		
 		value_t val;
-		val.number = strtod(savedFirst, nullptr);
-		if (val.number == HUGE_VAL) {
+		auto res = std::from_chars(savedFirst, first, val.number);
+		if (res.ec != std::errc()) {
 			return parse_error(p, Invalid_number, savedFirst);
 		}
 		
 		result = wrap_user_callback(Number_float, val, savedFirst);
+		first = (char *)res.ptr;
 	}
 	else {
 		value_t val;
-		val.integer = strtoll(savedFirst, nullptr, 10);
-		if ((val.integer == LLONG_MAX || val.integer ==  LLONG_MIN) && (errno == ERANGE)) {
+		auto res = std::from_chars(savedFirst, first, val.integer);
+		if (res.ec != std::errc()) {
 			return parse_error(p, Invalid_number, savedFirst);
 		}
 		
 		result = wrap_user_callback(Number_int, val, savedFirst);
+		first = (char *)res.ptr;
 	}
-	
-	*first = savedCh;
 	
 	p.parsed = first;
 	return result;
@@ -517,31 +508,26 @@ static bool parseNumber(parser_base_t& p, char * first, char * last) {
 	buf[cur] = 0;
 	*(last-1) = savedCh;	// replace the sentinel with the saved character
 	
-	if (haveDot && !haveExp && !haveDotDigit ||
-		haveExp && !haveExpDigit ||
-		!haveDigit)
-	{
-		return parse_error(p, Invalid_number, savedFirst);
-	}
-	
 	bool result;
 	if (haveDot | haveExp) {		
 		value_t val;
-		val.number = strtod(buf, nullptr);
-		if (val.number == HUGE_VAL) {
+		auto res = std::from_chars(buf, std::end(buf), val.number);
+		if (res.ec != std::errc()) {
 			return parse_error(p, Invalid_number, savedFirst);
 		}
 		
-		result = wrap_user_callback(Number_float, val, first);
+		result = wrap_user_callback(Number_float, val, savedFirst);
+		first = res.ptr - buf + savedFirst;
 	}
 	else {
 		value_t val;
-		val.integer = strtoll(buf, nullptr, 10);
-		if ((val.integer == LLONG_MAX || val.integer ==  LLONG_MIN) && (errno == ERANGE)) {
+		auto res = std::from_chars(buf, std::end(buf), val.integer);
+		if (res.ec != std::errc()) {
 			return parse_error(p, Invalid_number, savedFirst);
 		}
 		
-		result = wrap_user_callback(Number_int, val, first);
+		result = wrap_user_callback(Number_int, val, savedFirst);
+		first = res.ptr - buf + savedFirst;
 	}
 	
 	p.parsed = first;

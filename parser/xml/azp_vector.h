@@ -6,8 +6,6 @@
 namespace azp {
 	
 	
-inline size_t round_up(size_t s, size_t a) { return (s+a-1) & (~a); }
-	
 template <typename T, typename Allocator=default_alloc_t>
 struct vector {
 	T* _start;
@@ -70,15 +68,22 @@ bool operator==(const vector<T, Allocator>& l, const vector<T, Allocator>& r)
 	return true;
 }
 
+
+#ifndef __ROUND_UP__
+inline size_t round_up(size_t s, size_t a) { return (s+a-1) & (~a); }
+#define __ROUND_UP__
+#endif
+
+
 template <typename T, typename Allocator>
 void vector<T, Allocator>::reserve(size_t requested) {
 	size_t cap = capacity();
 	if (requested < cap) return;
 	
-	cap = cap * 3 / 2;
+	cap += cap / 2;
 	if (requested < cap) requested = cap;
 	
-	auto b = _a.alloc(requested * sizeof(T));
+	auto b = _a.alloc(round_up(requested * sizeof(T), 16));
 	if (!b.p) throw std::bad_alloc();
 	
 	T* target = (T*)b.p;
@@ -93,7 +98,7 @@ void vector<T, Allocator>::reserve(size_t requested) {
 	
 	_start = (T*)b.p;
 	_end = target;
-	_max = _start + requested;
+	_max = _start + b.size/sizeof(T);
 }
 
 
